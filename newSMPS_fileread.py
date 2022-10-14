@@ -1,0 +1,105 @@
+# -*- coding: utf-8 -*-
+"""
+Created 2020/09/14
+
+@written by Karin Wieland
+    v0 Import of Data and Plot
+@edited by Kevin Maier (kevin.r.maier@tum.de)
+    v1 2020/10/xx: labels plot with comment from txt instead of timestamp
+    v2 2020/11/14: created functions from previous script as "import_data" and "plot_data"
+    v3 2020/11/17: added tkinter
+    v4 2022/01/14-16: redid import function for later using it with one SMPS_analysis file
+"""
+
+import numpy as np
+from datetime import datetime
+from tkinter import Tk
+from tkinter.filedialog import askopenfilename
+
+
+def get_filename():
+    """get the filename via UI"""
+    Tk().withdraw()
+    filename = askopenfilename()
+    return filename
+
+
+def import_data(filename):
+    """takes the raw data and extracts the variables from it to return:
+    X  = array with all the X values = particle size
+    Xl = array with all the lower borders of the size bins (named Xu in the Palas SMPS file)
+    Xu = array with all the upper borders of the size bins (named Xo in the Palas SMPS file)
+    Cn = array with all the number counts of the particles per bin in inverted and diffusion corrected (dn_inv_diff in
+    the Palas SMPS file)
+    time  = list with the starting times of each measurement
+    nr_scans = array with the number of the scans=index+1"""
+    with open(filename) as f_in:  # open file and keep open
+        lines = f_in.readlines()  # read the file in line by line
+        len_file = len(lines)  # determine the length of the file
+        nr_scans = int(len_file/7)  # calculate the number of scans in the file
+        # scan_nr = np.array([i+1 for i in range(0, nr_scans, 1)])  # list of scan numbers for correlating in plots
+        # not used atm
+
+        data = []  # defines a list to fill with the data (has to be done this way as the length of the data can vary
+        # accordingly to set measuring range
+        data_len = []  # defines a list, in which the lengths of each data line are saved to later find out the max and
+        # preallocate the data array
+
+        counter = 0  # setting a counter for indexing correctly
+
+        pos = np.arange(0, len_file, 7)  # builds an iterator including the positions of all lines filled with measuring
+        # parameters
+
+        for i in np.arange(0, len_file):  # iterating through all lines in the file to produce a list of lists with the
+            # data skipping all headerlines (the first and every 7th)
+            if i in pos:
+                continue
+            else:
+                data.append(lines[i].split("\t"))  # produces the list in the list called data
+                data_len.append(len(data[counter]))  # gives the length of each data line for later building the array
+            counter += 1
+    f_in.close()  # closes the file from which the data was read
+
+    nr_bins = max(data_len)-2  # calculates the maximum number of measuring points in the file subtracting 2 for the
+    # first two columns being the "header" columns in the original txt
+
+    X = np.zeros((nr_scans, nr_bins))  # preallocate the arrays
+    Xl = np.zeros_like(X)
+    Xu = np.zeros_like(X)
+    Cn = np.zeros_like(X)
+    X[:] = np.nan  # fill the arrays with nans, so all none filled values are nans later and not 0
+    Xl[:] = np.nan
+    Xu[:] = np.nan
+    Cn[:] = np.nan
+
+    for i in range(nr_scans):  # filling the arrays with the values from the data list of lists
+        for k in range(2, data_len[int(0 + i * 6)]):
+            Xl[i, k-2] = data[int(0 + i * 6)][int(k)]
+        for k in range(2, data_len[int(1 + i * 6)]):
+            Xu[i, k-2] = data[int(1 + i * 6)][int(k)]
+        for k in range(2, data_len[int(2 + i * 6)]):
+            X[i, k-2] = data[int(2 + i * 6)][int(k)]
+        for k in range(2, data_len[int(5 + i * 6)]):  # 5 is based on the inverted diff corrected data, 3 on the raw data
+            Cn[i, k-2] = data[int(5 + i * 6)][int(k)]
+
+    labels = np.genfromtxt(fname=filename, delimiter='\t', usecols=(0, 1), dtype=str)
+    # imports the first two columns containing the labels, the date and the time, from that create time and
+    # len of the whole file
+    time = []  # defining time list
+    for i in range(0, nr_scans, 1):  # iteratively filling time list with datetime objects
+        time.append(datetime.strptime(labels[i * 7, 0] + " " + labels[i * 7, 1], '%m/%d/%Y %I:%M %p'))
+    # %p is the identifier for AM or PM in a 12 hour format
+
+    bar_width = np.subtract(Xu, Xl)
+
+    return X, bar_width, Cn, time # , scan_nr
+
+# could actually do X just as a list with only the longest X axis in it
+
+
+if __name__ == "__main__":
+
+    filename = get_filename()
+    X, bar_width, Cn, time = import_data(filename)
+
+

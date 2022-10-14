@@ -1,0 +1,68 @@
+# -*- coding: utf-8 -*-
+"""
+Script for Data Evaluation of the TSI SMPS consisting of Classifier 3071, DMA 3081 and CPC 3775
+Data has to be exported in rows and plot is written, so that it displays the dW/logDp
+Mean and std of three consecutive measurements is calculated, so triplicates should be measured
+
+Created v0 2021-10-22 - 2021-10-26
+v1 2021-11-17: title of the produced figures now in two lines, added concentration to be extracted, averaged, printed
+v2 2022-01-18: started to modify it, to work with SMPS_analysis_v0 -> continue this later on, shifted bar_width from
+                plot to extract function, changed mean_of_3 to mean of n, which was ez
+v3 2022-03-03: reworked it, so it can be used as import filter for SMPS_analysis_v0 -> removed all doubly functions
+                now gives X, bar_width, Cn and time as newSMPS_fileread_v4.py
+
+Kevin Maier (kevin.r.maier@tum.de)
+"""
+
+import numpy as np
+import pandas as pd
+from datetime import datetime
+from tkinter import Tk
+from tkinter.filedialog import askopenfilename
+
+
+def get_filename():
+    """get the filename via UI"""
+    Tk().withdraw()
+    filename = askopenfilename()
+    return filename
+
+
+def import_data(filename):
+    """import smps data from txt file with name filename to pd dataframe, also includes time, some settings and some
+    statistical values calculated by the TSI program
+    then extract the actual measuring data from the dataframe and give X, bar_width, Cn and time
+    to work, the data has to be exported in rows"""
+    data = pd.read_table(filename, sep='\t', header=16, index_col=0, skiprows=1,
+                         engine='python')
+
+    Cn = data.iloc[:, list(range(7, 114))] #extracts the data by column location
+    Cn = Cn.to_numpy()
+    x_axis = data.columns.values[list(range(7, 114))] #extracts the midpoint diameter from the pd.dataframe header
+    x_axis = x_axis.astype(float)
+    #conc_data = data.iloc[:, -2]
+    #conc_data = conc_data.to_numpy()
+    n_bins = len(x_axis)
+
+    delta_x = np.zeros(n_bins)
+    for k in range(n_bins):
+        if k < n_bins - 1:
+            delta_x[k] = x_axis[k + 1] - x_axis[k]
+        else:
+            delta_x[k] = x_axis[k] - x_axis[k - 1]
+
+    X = np.zeros(Cn.shape)
+    bar_width = np.zeros(Cn.shape)
+    time = []
+    for i in np.arange(len(Cn)):
+        X[i] = x_axis
+        bar_width[i] = delta_x
+        time.append(datetime.strptime(data.iloc[i, 0] + " " + data.iloc[i, 1], '%m/%d/%y %H:%M:%S'))
+
+    return X, bar_width, Cn, time
+
+
+if __name__ == "__main__":
+
+    filename = get_filename()
+    X, bar_width, Cn, time = import_data(filename)
