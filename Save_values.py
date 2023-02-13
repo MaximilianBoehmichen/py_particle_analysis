@@ -25,5 +25,7 @@ if __name__ == "__main__":
 
     # to load your session
 
-    #with open('{path}', 'rb') as f:
-        #bk_restore = pickle.load(f)
+    # import pickle
+    # path = input("please enter the desired path")
+    # with open(f'{path}', 'rb') as f:
+    #     bk_restore = pickle.load(f)
