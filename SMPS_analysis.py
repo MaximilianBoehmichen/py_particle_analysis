@@ -310,7 +310,7 @@ def lognormal_dist(mean_conc_n, sigma_g, dg, mean_X, mean_bar_width):
         #fit[k, :] = (mean_conc_n[k] / (math.sqrt(2 * math.pi) * np.log(sigma_g[k]))) * \
         #            np.exp((-np.square(np.log(mean_X[k, :]) - np.log(dg[k]))) / (2 * (math.log(sigma_g[k])) ** 2))
         # is roughly 28 times higher than the histogram
-        fit[k, :] = ((mean_conc_n[k]/mean_bar_width[k])/ (math.sqrt(2 * math.pi) * np.log(sigma_g[k])))*\
+        fit[k, :] = ((mean_conc_n[k]/mean_bar_width[k])/(math.sqrt(2 * math.pi) * np.log(sigma_g[k])))*\
                     np.exp((-np.square(np.log(mean_X[k, :])-np.log(dg[k])))/(2*(math.log(sigma_g[k]))**2))
         # did not do what i wanted it to
         # fit[k, :] = ((mean_conc_n[k] / mean_X.shape[0]) / (math.sqrt(2 * math.pi) * np.log10(sigma_g[k]))) * \
@@ -323,10 +323,16 @@ def lognormal_dist(mean_conc_n, sigma_g, dg, mean_X, mean_bar_width):
     return fit
 
 
-def lognormal_function(x, A, mu, sigma):
-    """definition of a log-normal function with A being a scale factor, mu being the median and sigma being the geometric
+def lognormal_function(x, A, loc, m, sigma):
+    """definition of a log-normal function with x being an array of x-values, A being a scale factor, loc being the location parameterm being the
+    median and sigma being the geometric standard deviation"""
+    return A*np.exp(-((np.log(x)-m)**2)/(2*sigma**2))/(sigma*x*np.sqrt(2*math.pi))
+
+
+def normal_function(x, A, mu, sigma):
+    """definition of a normal function with A being a scale factor, mu being the median and sigma being the geometric
     standard deviation"""
-    return A*(np.exp(-((np.log(x)-mu)**2)/(2*sigma**2))/(sigma*x*np.sqrt(2*math.pi)))
+    return A*np.exp(-((x-mu)**2)/(2*sigma**2))/(sigma*np.sqrt(2*math.pi))
 
 
 def calc_geometry(mean_X, mean_Cn, mean_conc_n, mean_bar_width):  # theoretically this would also work with noon-mean
@@ -395,6 +401,9 @@ if __name__ == "__main__":
     # ax1.plot(mean_X[measurement_nr], fit[measurement_nr])
     # print(dg)
     # print(sigma_g)
+
+    # plt.ioff()
+    # plt.show() # if plot doesnt show!
 
     # plt.ioff()
     # plt.show() # if plot doesnt show!
