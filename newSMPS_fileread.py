@@ -20,13 +20,6 @@ from tkinter import Tk
 from tkinter.filedialog import askopenfilename
 
 
-# def get_filename():
-#     """get the filename via UI"""
-#     Tk().withdraw()
-#     filename = askopenfilename()
-#     return filename
-
-
 def import_data(filename):
     """takes the raw data and extracts the variables from it to return:
     X  = array with all the X values = particle size
@@ -94,6 +87,8 @@ def import_data(filename):
     # %p is the identifier for AM or PM in a 12 hour format
 
     bar_width = np.subtract(Xu, Xl)
+    dlogDp = np.log10(Xu/Xl)
+    Cn = Cn/dlogDp  # calculate dC/dlogDp from known interval width
 
     return X, bar_width, Cn, time # , scan_nr
 
@@ -101,6 +96,12 @@ def import_data(filename):
 
 
 if __name__ == "__main__":
+
+    def get_filename():
+        """get the filename via UI"""
+        Tk().withdraw()
+        filename = askopenfilename()
+        return filename
 
     filename = get_filename()
     X, bar_width, Cn, time = import_data(filename)
