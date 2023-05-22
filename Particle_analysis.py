@@ -237,9 +237,9 @@ def plot_singledata(sel_X, sel_bar_width, sel_Cn, calc_conc_n, scan_nr):
         for k in scan_nr:
             ax.bar(sel_X[k, :], sel_Cn[k, :], width=sel_bar_width[k, :], edgecolor='black', alpha=0.5)
     ax.xaxis.set_major_formatter(ticker.ScalarFormatter())
-    ax.set(xscale='log', xticks=[20, 50, 100, 200, 400, 800], xticklabels=[20, 50, 100, 200, 400, 800],
-           xlabel='Particle Diameter / $\mathregular{mum}$', #changed that to go with APS data for a moment
-           ylabel='dN/dlogDp / $\mathregular{1/cm^3}$')
+    ax.set(xscale='log', xticks=[0.5, 1, 2, 5, 10], xticklabels=[0.5, 1, 2, 5, 10],
+           xlabel='Particle Diameter / $\mu$m', #changed that to go with APS data for a moment
+           ylabel='dN/dlogD$_{p}$ / $\mathregular{1/cm^3}$')
     # yscale='log', xscale='log', xlabel='$\mathregular{dlog D_p}$ / nm', ylabel='dN / $\mathregular{P/cm^3}$'
     # plt.title(input("Please enter the title of the figure"), wrap=True, y=1.08)
     fig.subplots_adjust(top=0.95)  # 0.8 when title is active, when not 0.95 looks good also change figsize!
