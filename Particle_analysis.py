@@ -197,10 +197,12 @@ def plot_singledata(sel_X, sel_bar_width, sel_Cn, calc_conc_n, scan_nrs):
         print(f"scan {k} conc. = " + "{:e}".format(float(calc_conc_n[k])) + " P/cm" + u"\u00B3")
     else:
         legend_entries = []
+        ct = 0
         for k in plot_nrs:
             ax.bar(sel_X[k, :], sel_Cn[k, :], width=sel_bar_width[k, :], edgecolor='black', alpha=0.5)
-            legend_entries.append(input(f"Please enter the legend entry for scan {scan_nrs[k]}"))
+            legend_entries.append(input(f"Please enter the legend entry for scan {scan_nrs[ct]}"))
             print(f"scan {k} conc. = " + "{:e}".format(float(calc_conc_n[k])) + " P/cm" + u"\u00B3")
+            ct += 1
 
     format_plot(fig, ax, used_device)
 
@@ -327,10 +329,12 @@ def cut_dist(sel_X, sel_C, sel_bar_width, lowerbound, upperbound, scan_nrs):
     cut_X = np.zeros((len(cut_nrs), len(sel_X[0, strt_idx:end_idx])))
     cut_C = np.zeros((len(cut_nrs), len(sel_C[0, strt_idx:end_idx])))
     cut_bar_width = np.zeros((len(cut_nrs), len(sel_bar_width[0, strt_idx:end_idx])))
+    ct = 0
     for k in cut_nrs:
-        cut_X[k, :] = sel_X[k, strt_idx:end_idx]
-        cut_C[k, :] = sel_C[k, strt_idx:end_idx]
-        cut_bar_width[k, :] = sel_bar_width[k, strt_idx:end_idx]
+        cut_X[ct, :] = sel_X[k, strt_idx:end_idx]
+        cut_C[ct, :] = sel_C[k, strt_idx:end_idx]
+        cut_bar_width[ct, :] = sel_bar_width[k, strt_idx:end_idx]
+        ct += 1
     return cut_X, cut_C, cut_bar_width
 
 
@@ -355,10 +359,10 @@ if __name__ == "__main__":
     X, bar_width, Cn, time = fileread(filename, used_device)
 
     """data selection"""
-    scan_nrs = list(range(1, 24))  # actual scan numbers in non-pythonian logic + 1 in the end due to range()
+    # scan_nrs = list(range(1, 26))  # actual scan numbers in non-pythonian logic + 1 in the end due to range()
     # scan_nrs = [1, 3, 5,9, 12] # as alternative
-    sel_Cn, sel_X, sel_bar_width, sel_time = select_data(X, Cn, bar_width, time, scan_nrs)
-    print(f"selected scan_nrs: {scan_nrs}")
+    # sel_Cn, sel_X, sel_bar_width, sel_time = select_data(X, Cn, bar_width, time, scan_nrs)
+    # print(f"selected scan_nrs: {scan_nrs}")
 
     """calculation of volume and mass distributions"""
     # density = 1  # in g/cm^3
@@ -369,7 +373,8 @@ if __name__ == "__main__":
     """cut size distribution"""
     # lowerbound = 100 #in the unit, the size data are saved by the instrument e.g. nm
     # upperbound = 350
-    # cut_X, cut_Cn, cut_bar_width = cut_dist(sel_X, sel_Cn, sel_bar_width, lowerbound, upperbound, scan_nrs)  # scan_nrs in []
+    # cut_nrs = [1, 5, 7, 15]  # cut_nrs in []
+    # cut_X, cut_Cn, cut_bar_width = cut_dist(sel_X, sel_Cn, sel_bar_width, lowerbound, upperbound, cut_nrs)
 
     """calculation of concentration"""
     # calc_conc_n = get_conc(sel_Cn)
@@ -381,15 +386,19 @@ if __name__ == "__main__":
     # print(f"mean of: {nr_mean} calculated")
 
     """calculation of geometric parameters"""
-    # dg, sigma_g = calc_geometry(mean_X, mean_Cn, mean_conc_n, mean_bar_width)
     # dg, sigma_g = calc_geometry(sel_X, sel_Cn, calc_conc_n, sel_bar_width)
+    # dg, sigma_g = calc_geometry(mean_X, mean_Cn, mean_conc_n, mean_bar_width)
     # print(f'median = {dg}, sigma = {sigma_g}')
+    # if conc is 0 an error will be displayed
 
     """plotting of data"""
-    # measurement_nr = [0]#np.arange(1, 7) # for plotting
-    # print(f"measurement_nr: {measurement_nr}")
-    # ax1 = plot_singledata(sel_X, sel_bar_width, sel_Cn, calc_conc_n, scan_nrs)
-    # ax1 = plot_meandata(mean_X, mean_bar_width, mean_Cn, std_Cn, mean_conc_n, std_conc_n, scan_nrs)
+    # plot_nrs = [1, 5, 7, 15]  # or list(range(1, 7))
+    # print(f"Plotted scan numbers: {plot_nrs}")
+    # ax1 = plot_singledata(sel_X, sel_bar_width, sel_Cn, calc_conc_n, plot_nrs)
+    # ax1 = plot_meandata(mean_X, mean_bar_width, mean_Cn, std_Cn, mean_conc_n, std_conc_n, plot_nrs)
+    # ax2 = plot_singledata(cut_X, cut_bar_width, cut_Cn, calc_conc_n, plot_nrs)
+    # if only a selection of distributions was cut with e.g. cut_nrs = [1, 5, 7, 15], counting for the plot of the cut
+    # distributions has to start at 1, if all distributions were cut, the scan_nrs can be used as plot_nrs
 
     """other calls"""
     # ax1.plot(mean_X[measurement_nr], fit[measurement_nr])
