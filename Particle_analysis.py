@@ -248,12 +248,13 @@ def geometric_std(X, C, conc, dg):
         call mean_sigma_g = geometric_std(mean_X, mean_C, mean_conc, mean_dg then,
         or sel_sigma_g = geometric_std(sel_X, sel_C, calc_conc, sel_dg)"""
     sigma_g = []
-    for k in np.arange(0, len(conc)):
+    for k in range(0, len(conc)):
         if conc[k] == 0:
             sigma_g.append(np.inf)
         else:
-            sigma_g.append(math.exp(math.sqrt((np.nansum(np.square(np.log(X[k]) - np.log(dg[k]))*C[k]))/
-                                         (conc[k]-1))))  # 22-13 in aerosol measurement, kulkarni et.al.
+            sigma_g.append(math.exp(math.sqrt((np.nansum(np.square(np.log(X[k])
+                                                                   - np.log(dg[k]))*C[k]))/(np.nansum(C[k]-1)))))
+            # 22-13 in aerosol measurement, Kulkarni et.al.  # 20230705 changed /conc to /np.nansum(C[k]-1)
         #sigma_g.append(math.pow(10, (math.sqrt((np.nansum(np.square(np.log10(mean_X[k]) - np.log10(dg[k])) *
         #                                                  mean_Cn[k])) / (mean_conc_n[k] - 1)))))
         # same result as above
@@ -378,16 +379,20 @@ if __name__ == "__main__":
     # upperbound, cut_nrs)
 
     """calculation of concentration"""
-    # calc_conc_n = get_conc(sel_Cn)
-    # calc_conc_v = get_conc(sel_Cv)
-    # calc_conc_m = get_conc(sel_Cm)
+    # data_identifier["calc_conc_n"] = get_conc(data_identifier["Cn"]
+    # calc_conc_n = get_conc(Cn)
+    # calc_conc_v = get_conc(Cv)
+    # calc_conc_m = get_conc(Cm)
 
     """mean of data"""
     # nr_mean = 1
     # print(f"mean of: {nr_mean} calculated")
 
     """calculation of geometric parameters"""
-    # dg, sigma_g = calc_geometry(sel_X, sel_Cn, calc_conc_n, sel_bar_width)
+    # data_identifier["dg", "sigma_g"] = calc_geometry(data_identifier["X"], data_identifier["Cn"],
+    # data_identifier["calc_conc_n"], data_identifier["bar_width"])
+
+    # dg, sigma_g = calc_geometry(X, Cn, calc_conc_n, sel_bar_width)
     # dg, sigma_g = calc_geometry(mean_X, mean_Cn, mean_conc_n, mean_bar_width)
     # print(f'median = {dg}, sigma = {sigma_g}')
     # if conc is 0 an error will be displayed
