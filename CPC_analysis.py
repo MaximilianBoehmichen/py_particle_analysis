@@ -13,23 +13,32 @@ from matplotlib import ticker
 from matplotlib import pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
+from get_filename import get_filename
+import pandas as pd
 #import mpldatacursor
 
 
-def fileread():
+def fileread(filename, used_device):
     """just a very fast function for applying the correct import filter according to user choice"""
-    used_cpc = input("Which CPC did you use, type 0 for old TSI, or 1 for new PALAS")
-    #used_cpc = 0
 
-    if int(used_cpc) == 0:
+    if int(used_device) == 0:
         import TSI_CPC3775_fileread as fr
     else:
         import PALAS_UFCPC_fileread as fr
 
-    filename = fr.get_filename()
     Cn, el_time, start_time = fr.import_data(filename)
     return Cn, el_time, start_time
 
+
+def get_data():
+    filename = get_filename()
+    used_device = input("Which instrument did you use, type 0 for TSI 3775, or 1 for PALAS CPC")
+    Cn, el_time, start_time = fileread(filename, used_device)
+    scan_nr = []
+    [scan_nr.append(k + 1) for k in range(len(Cn))]
+    data = {"Cn": Cn, "el_time": el_time,
+            "start_time": start_time, "scan_nr": scan_nr, "filename": filename, "used_device": used_device}
+    return data
 
 # def select_data(Cn, msmt_nrs):
 #     """select specific CPC msmts from the imported raw data, msmt_nrs defines, which measurements to take
@@ -40,6 +49,14 @@ def fileread():
 #         sel_Cn[k, :] = Cn[msmt_nrs[k]-1, :]
 #
 #     return sel_Cn
+
+
+def cut_time(Cn, el_time, start, end):
+    """can be used to cut conc array time wise"""
+    cut_Cn = Cn[:, start:end]
+    cut_time = el_time[start:end]
+    return cut_Cn, cut_time
+
 
 def get_meanconc(Cn):
     conc_n = np.nanmean(Cn, 1)
@@ -104,14 +121,27 @@ def plot_timeline(conc_n, std_n, start_time, start, end):
     return ax
 
 
+def save_calc_to_csv(data_dict, variable_list, fileaddition="_particleDF"):
+    """saves selected variables to a csv file, select variables to save in variable_list as list of strings,
+     allways use a different fileaddition when saving anything else than the data input array data_identifier"""
+    path = data_dict["filename"][:-4]+fileaddition+".csv"
+    dataframe = pd.DataFrame()
+    for variable in variable_list:
+        dataframe[variable] = data_dict[variable]
+    print(f"wrote file with variables {variable_list} to csv with name {path}")
+    dataframe.to_csv(path)
+    return
+
+
 if __name__ == "__main__":
 
-    Cn, el_time, start_time = fileread()
-    conc_n, std_n = get_meanconc(Cn)
+    """"""
+    # data_identifier = get_data()
+    #conc_n, std_n = get_meanconc(Cn)
+    #save_calc_to_csv(data_identifier, ["scan_nr", "start_time", "mean_cut_Cn", "std_cut_Cn"],
+    #                 fileaddition="_particleDF")
     # measurement_nr = [0]#np.arange(0, 3)
     # ax = plot_singledata(Cn, el_time, conc_n, std_n, measurement_nr)
     # ax = plot_timeline(conc_n, std_n, start_time, start, end) # start end are measurement numbers in conc array
 
     # ax.legend(legend_entries, ncol=2,handleheight=2.4, labelspacing=0.05) if legend is too long
-
-    """utf-8 error is mostly due to the cm^-3 column -> replace 0xb3 by cm3"""
