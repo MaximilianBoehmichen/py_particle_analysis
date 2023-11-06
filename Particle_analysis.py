@@ -256,8 +256,9 @@ def geometric_std(X, C, conc, dg):
         call mean_sigma_g = geometric_std(mean_X, mean_C, mean_conc, mean_dg then,
         or sel_sigma_g = geometric_std(sel_X, sel_C, calc_conc, sel_dg)"""
     sigma_g = []
-    for k in range(0, len(conc)):
-        if conc[k] == 0:
+    for k in range(0, len(conc)):  # gave a math error for conc < 1 because conc-1 in sigma_g is < 0 then, so division
+        #  is not possible
+        if conc[k] < 1:
             sigma_g.append(np.inf)
         else:
             sigma_g.append(math.exp(math.sqrt((np.nansum(np.square(np.log(X[k])
@@ -353,17 +354,14 @@ def typical_calculations(data):
     return data
 
 
-def save_calc_to_csv(data_dict, fileaddition="_particleDF"):
-    """saves selected variables to a csv file, allways use a different fileaddition when saving anything else than the
-    data input array data_identifier"""
+def save_calc_to_csv(data_dict, variable_list, fileaddition="_particleDF"):
+    """saves selected variables to a csv file, select variables to save in variable_list as list of strings,
+     allways use a different fileaddition when saving anything else than the data input array data_identifier"""
     path = data_dict["filename"][:-4]+fileaddition+".csv"
     dataframe = pd.DataFrame()
-    dataframe["scan_nr"] = data_dict["scan_nr"]
-    dataframe["time"] = data_dict["time"]
-    dataframe["dg"] = data_dict["dg"]
-    dataframe["sigma"] = data_dict["sigma"]
-    dataframe["calc_conc_n"] = data_dict["calc_conc_n"]
-    print("wrote file to csv")
+    for variable in variable_list:
+        dataframe[variable] = data_dict[variable]
+    print(f"wrote file with variables {variable_list} to csv with name {path}")
     dataframe.to_csv(path)
     return
 
@@ -466,7 +464,7 @@ if __name__ == "__main__":
     # print(f"Plotted scan numbers: {plot_nrs}")
     # ax1 = plot_singledata(sel_X, sel_bar_width, sel_Cn, calc_conc_n, plot_nrs)
     # 9. ax1 = plot_singledata(data_identifier["X"], data_identifier["bar_width"], data_identifier["Cn"],
-    #   data_identifier["calc_conc_n"], used_device, plot_nrs) # [1,4,7,9]
+    #   data_identifier["calc_conc_n"], used_device, scan_nrs) # [1,4,7,9]
 
     # ax2 = plot_singledata(cut_X, cut_bar_width, cut_Cn, calc_conc_n, plot_nrs)
     # if only a selection of distributions was cut with e.g. cut_nrs = [1, 5, 7, 15], counting for the plot of the cut
@@ -474,7 +472,7 @@ if __name__ == "__main__":
 
     # 9. ax1 = plot_meandata(mean_X, mean_bar_width, mean_C, std_C, mean_conc, std_conc, used device, plot_nrs)
 
-    # save_calc_to_csv(data_identifier)
+    # save_calc_to_csv(data_identifier, ["scan_nr", "time", "dg", "sigma", "calc_conc_n"], fileaddition="_particleDF")
 
     """other calls"""
     # ax1.plot(mean_X[measurement_nr], fit[measurement_nr])
