@@ -23,7 +23,7 @@ def import_data(filename):
 
     data = pd.read_table(filename, sep=',', header=2, index_col=0,
                          engine='python', encoding='ANSI')  # dropped utf-8 error as file is ANSI encoded
-    #changed separator to "," from "/t" as i exported data with , separation
+    # changed separator to "," from "/t" as i exported data with , separation
 
     timepoints = data.iloc[0, 2] / data.iloc[0, 3]
     el_time = np.array(range(data.iloc[0, 3], data.iloc[0, 2]+data.iloc[0, 3], data.iloc[0, 3]))  # elapsed time
@@ -34,7 +34,8 @@ def import_data(filename):
     for i in range(len(data)):
         start_time.append(datetime.strptime(data.iloc[i, 0] + " " + data.iloc[i, 1], '%m/%d/%y %H:%M:%S'))
         for k in range(int(timepoints)):
-            Cn[i, k] = data.iloc[i, 11+k*2]
+            #Cn[i, k] = data.iloc[i, 11+k*2] # for tab separatore used before
+            Cn[i, k] = data.iloc[i, 11 + k * 4] # for currently used eport, as analog outputs were saved there too
 
     return Cn, el_time, start_time
 
