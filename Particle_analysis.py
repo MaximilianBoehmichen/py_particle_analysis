@@ -414,8 +414,8 @@ def merge_data(sel_data_list):
     merged_data["X"] = sel_data_list[0]["X"]
     merged_data["Cn"] = sel_data_list[0]["Cn"]
     merged_data["bar_width"] = sel_data_list[0]["bar_width"]
-    merged_data["time"] = sel_data_list[0]["time"]
-    merged_data["scan_nr"] = sel_data_list[0]["scan_nr"]
+    merged_data["time"] = sel_data_list[0]["time"][:]
+    merged_data["scan_nr"] = sel_data_list[0]["scan_nr"][:]
     merged_data["origin"] = []
     [merged_data["origin"].append(sel_data_list[0]["filename"]) for k in range(len(sel_data_list[0]["scan_nr"]))]
     for i in sel_data_list[1:]:
@@ -428,6 +428,7 @@ def merge_data(sel_data_list):
             merged_data["origin"].append(i["filename"])
     return merged_data
 
+
 def merge_mean_data(mean_data_list):
     """merges dictionaries of data, should best be used with mean data dicts
     currently also writes into the first dict it takes data from???"""
@@ -436,10 +437,8 @@ def merge_mean_data(mean_data_list):
     merged_mean_data["mean_C"] = mean_data_list[0]["mean_C"]
     merged_mean_data["std_C"] = mean_data_list[0]["std_C"]
     merged_mean_data["bar_width"] = mean_data_list[0]["bar_width"]
-    merged_mean_data["mean_conc"] = []
-    merged_mean_data["std_conc"] = []
-    merged_mean_data["mean_conc"] = mean_data_list[0]["mean_conc"]
-    merged_mean_data["std_conc"] = mean_data_list[0]["std_conc"]
+    merged_mean_data["mean_conc"] = mean_data_list[0]["mean_conc"][:]
+    merged_mean_data["std_conc"] = mean_data_list[0]["std_conc"][:]
     for i in mean_data_list[1:]:
         merged_mean_data["mean_X"] = np.append(merged_mean_data["mean_X"], i["mean_X"], axis=0)
         merged_mean_data["mean_C"] = np.append(merged_mean_data["mean_C"], i["mean_C"], axis=0)
@@ -448,6 +447,7 @@ def merge_mean_data(mean_data_list):
         merged_mean_data["mean_conc"].extend(i["mean_conc"])
         merged_mean_data["std_conc"].extend(i["std_conc"])
     return merged_mean_data
+
 
 """ToDo:"""
 
