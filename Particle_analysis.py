@@ -216,7 +216,7 @@ def plot_singledata(data, used_device, scan_nrs):
 def plot_meandata(mean_data, used_device, scan_nrs):
     """plots the given data, use range(start, end), or a list to specify the measurements to use, these are the indices
     in the given Cn and C arrays"""
-    # at a mean of n in a corner of the plot
+    # add a mean of n in a corner of the plot
     mean_X = mean_data["mean_X"]
     mean_bar_width = mean_data["bar_width"]
     mean_C = mean_data["mean_C"]
@@ -230,11 +230,11 @@ def plot_meandata(mean_data, used_device, scan_nrs):
     legend_entries = []
     for k in plot_nrs:
         ax.bar(mean_X[k, :], mean_C[k, :], width=mean_bar_width[k, :], yerr=std_C[k, :], edgecolor='black')
-        user_input = input(f"Please enter the legend entry for scan {scan_nrs[k]}")
+        user_input = input(f"Please enter the legend entry for scan {k+1}")
         legend_entries.append(user_input + " (" + str("{:.2f}".format(float(mean_dg[k]))) + u"\u00B1" +
            str("{:.2f}".format(float(std_dg[k]))) + " nm)")
         # legend_entries.append(user_input) # scan_nrs is used here on purpose
-    [print(f"measurement {k} conc. = " + "{:e}".format(float(mean_conc_n[k])) + u"\u00B1" +
+    [print(f"measurement {k+1} conc. = " + "{:e}".format(float(mean_conc_n[k])) + u"\u00B1" +
            "{:e}".format(float(std_conc_n[k])) + " P/cm" + u"\u00B3") for k in plot_nrs]
 
     format_plot(fig, ax, used_device)
