@@ -376,6 +376,10 @@ def typical_calculations(data):
     data["dg"], data["sigma"] = calc_geometry(data["X"], data["Cn"], data["calc_conc_n"], data["bar_width"])
     return data
 
+def typical_calculation_mean(data):
+    data["calc_conc_n"] = get_conc(data["mean_C"])
+    data["dg"], data["sigma"] = calc_geometry(data["mean_X"], data["mean_C"], data["calc_conc_n"], data["bar_width"])
+    return data
 
 def save_calc_to_csv(data_dict, variable_list, fileaddition="_particleDF"):
     """saves selected variables to a csv file, select variables to save in variable_list as list of strings,
