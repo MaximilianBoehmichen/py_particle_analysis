@@ -480,6 +480,10 @@ def save_calc_to_csv(data_dict, variable_list, fileaddition="_particleDF"):
 # after that, dg, sigma etc. can be calculated with Cn, Cv, or Cm alike
 # add plot option for Cv and Cm in format plot function depending on one variable
 
+# integrate CPC_analysis.py? -> make particle_analysis.py the master file that runs functions from CPC_analysis
+# (maybe renamed to count_analysis?) and the functions now used for SMPS analysis in a new file maybe named
+# dist_analysis
+
 
 if __name__ == "__main__":
 
