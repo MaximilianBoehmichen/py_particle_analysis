@@ -413,6 +413,11 @@ def plot_singledata(data, used_device, scan_nrs):
     #plt.rcParams['figure.dpi'] = 600
     #plt.rcParams['savefig.dpi'] = 600
     plt.legend(legend_entries, loc='upper left')
+
+    fileaddition = input("Please enter a fileaddition")
+    path = data["filename"][:-4] + fileaddition + ".png"
+    plt.savefig(path, transparent=True)
+
     plt.show()
     return ax
 
@@ -442,6 +447,8 @@ def plot_meandata(mean_data, used_device, scan_nrs):
            "{:e}".format(float(std_conc_n[k])) + " P/cm" + u"\u00B3") for k in plot_nrs]
 
     format_plot(fig, ax, used_device)
+
+    # maybe add savefig, but then filename must be entered differently as mean data can consist of different input files
 
     plt.legend(legend_entries, loc='upper left')
     plt.show()
@@ -528,6 +535,8 @@ def save_calc_to_csv(data_dict, variable_list, fileaddition="_particleDF"):
 
 # Vorschlag Nico: Median als senkrechte Linie / Marker in den Plot einbauen
 
+# Kommentar mit einlesen bei Dateiimport ?
+
 # save funktion die dict zu einfacherer struktur macht, evtl. in form ähnlich zu PALAS Daten?
 #   filename, scan_nr ,time, used_device, calc_conc_n, dg, sigma # everything that is only one item per measurement
 #   X...
@@ -551,6 +560,7 @@ def save_calc_to_csv(data_dict, variable_list, fileaddition="_particleDF"):
 # (maybe renamed to count_analysis?) and the functions now used for SMPS analysis in a new file maybe named
 # dist_analysis
 
+# Add 2023-12-12 Eval to this script? -> comparison of 2 devices for calibration?
 
 if __name__ == "__main__":
 
@@ -630,6 +640,9 @@ if __name__ == "__main__":
     # print(dg)
     # print(sigma_g)
     # x_mean, x_std = mean_and_std(sel_data["dg"][:])
+
+    # from copy import deepcopy
+    # dict_copy = deepcopy(dict) gives flat copy that does not change original when changing copy
 
     # plt.ioff()
     # plt.show() # if plot doesnt show!
