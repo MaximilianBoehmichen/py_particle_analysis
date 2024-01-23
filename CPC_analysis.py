@@ -49,24 +49,25 @@ def get_data():
 #     for k in np.arange(len(msmt_nrs)):  # fill the arrays with the selected data
 #         sel_Cn[k, :] = Cn[msmt_nrs[k]-1, :]
 #
-#     return sel_Cn
+#    return sel_Cn
 
 
-def cut_time(Cn, el_time, start, end):
+def cut_time(data, start, end):
     """can be used to cut conc array time wise"""
-    cut_Cn = Cn[:, start:end]
-    cut_time = el_time[start:end]
-    return cut_Cn, cut_time
+    data["cut_Cn"] = data["Cn"][:, start:end]
+    data["cut_time"] = data["el_time"][start:end]
+    return data
 
 
-def get_meanconc(Cn):
-    conc_n = np.nanmean(Cn, 1)
-    std_n = np.nanstd(Cn, 1)
-    return conc_n, std_n
+def get_meanconc(data):
+    data["conc_n"] = np.nanmean(data["Cn"], 1)
+    data["std_n"] = np.nanstd(data["Cn"], 1)
+    return data
 
 
-def plot_singledata(Cn, el_time, conc_n, std_n, scan_nr):
+def plot_singledata(data, scan_nr):
     """plots complete data"""
+    Cn, el_time, conc_n, std_n = data["Cn"], data["el_time"], data["conc_n"], data["std_n"]
     plot_nr = py_logic_converter(scan_nr)
     cm = 1/2.54  # inches to cm
     fig, ax = plt.subplots(figsize=(18.5*cm, 10*cm))  # height with title 12, without 10
@@ -95,7 +96,11 @@ def plot_singledata(Cn, el_time, conc_n, std_n, scan_nr):
     #mpldatacursor.datacursor(ax)
     plt.legend(legend_entries)
 
-    plt.show()
+    fileaddition = input("Please enter a fileaddition")
+    path = data["filename"][:-4] + fileaddition + ".png"
+    plt.savefig(path, transparent=True)
+
+    #plt.show()
     return ax
 
 
