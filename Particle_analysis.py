@@ -98,6 +98,10 @@ def save_calc_to_csv(data_dict, variable_list, fileaddition="particleDF"):
 
 # Add Diffusion Loss calculator
 
+# Add Extrapolation of peaks for Dist
+
+# Add mixed plot of Conc and Dist data
+
 # For SMPS maybe integrate the whole data inversion process
 
 # Vorschlag Nico: Median als senkrechte Linie / Marker in den Plot einbauen

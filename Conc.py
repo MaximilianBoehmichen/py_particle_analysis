@@ -27,7 +27,6 @@ def select_data(Cn, msmt_nrs):
     # preallocate the sel_Cn array with shape = (n_msmts, n_timepoints)
     for k in np.arange(len(msmt_nrs)):  # fill the arrays with the selected data
         sel_Cn[k, :] = Cn[msmt_nrs[k]-1, :]
-
     return sel_Cn
 
 
@@ -36,6 +35,11 @@ def get_meanconc(data, conc_key):
     call: get_meanconc(data, "Cn") """
     data["mean_"+conc_key] = np.nanmean(data[conc_key], 1)
     data["std_"+conc_key] = np.nanstd(data["Cn"], 1)
+    return data
+
+
+def typical_calculations(data):
+    get_meanconc(data, "Cn")
     return data
 
 
