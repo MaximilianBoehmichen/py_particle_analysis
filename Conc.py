@@ -43,9 +43,10 @@ def typical_calculations(data):
     return data
 
 
-def cut_time(data, start, end):
+def cut_time(data, scan_nrs, start, end):
     """can be used to cut conc array time wise"""
-    data["cut_Cn"] = data["Cn"][:, start:end]
+    for k in scan_nrs:
+        data["cut_Cn"][k] = data["Cn"][k, start:end]
     data["cut_time"] = data["el_time"][start:end]
     return data
 
