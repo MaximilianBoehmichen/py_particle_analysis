@@ -29,11 +29,15 @@ def read_distribution(filename, used_device):
         import TSI_SMPS3071_fileread as fr  # ! utf-8 encoding for 3-superscript in the header second to last
         # column P/cm^3 does not work sometimes, just change the ^3 to 3 in the data txt then
     elif used_device == 1:
-        import PALAS_SMPS2100_fileread as fr
+        import TSI_SMPS3938_fileread as fr
     elif used_device == 2:
-        import TSI_LAS3340A_fileread as fr
+        import PALAS_SMPS2100_fileread as fr
     elif used_device == 3:
+        import TSI_LAS3340A_fileread as fr
+    elif used_device == 4:
         import TSI_APS3321_fileread as fr
+    elif used_device == 5:
+        import PALAS_Welas_fileread as fr
 
     X, bar_width, Cn, time = fr.import_data(filename)
     return X, bar_width, Cn, time
@@ -42,9 +46,9 @@ def read_distribution(filename, used_device):
 def read_concentration(filename, used_device):
     """function for importing concentration data, applying the correct import filter according to user choice and
     importing data as Cn, el_time = np.array((nr_scans, nr_times)), start_time = []"""
-    if used_device == 4:
+    if used_device == 6:
         import TSI_CPC3775_fileread as fr
-    elif used_device == 5:
+    elif used_device == 7:
         import PALAS_UFCPC_fileread as fr
 
     Cn, el_time, start_time = fr.import_data(filename)
@@ -53,17 +57,18 @@ def read_concentration(filename, used_device):
 
 def get_data():
     filename = Sup.get_filename()
-    used_device = int(input("Which instrument did you use, type 0 for TSI SMPS 3081, 1 for PALAS SMPS 2100, 2 for "
-                        "TSI LAS 3340A, 3 for TSI APS 3321, 4 for TSI CPC 3775 and 5 for PALAS UFCPC, enter as int."))
+    used_device = int(input("Which instrument did you use, type 0 for TSI SMPS 3081, 1 for TSI SMPS 3938, 2 for PALAS "
+                            "SMPS 2100, 3 for TSI LAS 3340A, 4 for TSI APS 3321, 5 for PALAS Welas, 6 for CPC 3775 and "
+                            "7 for PALAS UFCPC, enter as int."))
 
-    if used_device in [0, 1, 2, 3]:
+    if used_device in [0, 1, 2, 3, 4, 5]:  # Size Distribution Instruments
         X, bar_width, Cn, time = read_distribution(filename, used_device)
         scan_nr = []
         [scan_nr.append(k + 1) for k in range(len(X))]
         data = {"X": X, "Cn": Cn, "bar_width": bar_width, "time": time, "scan_nr": scan_nr, "filename": filename,
                 "used_device": used_device}
 
-    elif used_device in [4, 5]:
+    elif used_device in [6, 7]:  # Particle Counters
         Cn, el_time, start_time = read_concentration(filename, used_device)
         scan_nr = []
         [scan_nr.append(k + 1) for k in range(len(Cn))]
@@ -90,25 +95,6 @@ def save_calc_to_csv(data_dict, variable_list, fileaddition="particleDF"):
     dataframe.to_csv(path)
     return
 
-
-"""ToDo:"""
-
-# SMPS scans are transparent background pngs, conc has to be update to also have that
-
-# filename in merged array aus filenames der gemergeten arrays zusammenschnetzeln
-
-# just a code sniplet, that could be used to automatically import multiple datasets at once
-#   naming variables automatically and getting them out of a function does not work though
-#   input_name = input("Enter a name for the data you are importing (has to start with a letter)")
-#   locals()[input_name] = data
-
-# check, where Cn and where C makes sense as variable name
-# all processes , like select, merge, etc. can be done with Cn, then the data can be converted to Cv and Cm
-# -> change mean_C to "Cn" in mean function
-# after that, dg, sigma etc. can be calculated with Cn, Cv, or Cm alike
-# add plot option for Cv and Cm in format plot function depending on one variable
-
-# Add 2023-12-12 Eval to this script? -> comparison of 2 devices for calibration?
 
 if __name__ == "__main__":
 
