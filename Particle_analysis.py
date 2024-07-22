@@ -56,19 +56,29 @@ def read_concentration(filename, used_device):
 
 
 def get_data():
-    filename = Sup.get_filename()
     used_device = int(input("Which instrument did you use, type 0 for TSI SMPS 3081, 1 for TSI SMPS 3938, 2 for PALAS "
-                            "SMPS 2100, 3 for TSI LAS 3340A, 4 for TSI APS 3321, 5 for PALAS Welas, 6 for CPC 3775 and "
+                            "SMPS 2100, 3 for TSI APS 3321, 4 for PALAS Welas, 5 for TSI LAS 3340A, 6 for CPC 3775 and "
                             "7 for PALAS UFCPC, enter as int."))
 
-    if used_device in [0, 1, 2, 3, 4, 5]:  # Size Distribution Instruments
+    if used_device in [0, 1, 2, 3, 4]:  # Size Distribution Instruments
+        filename = Sup.get_filename()
         X, bar_width, Cn, time = read_distribution(filename, used_device)
         scan_nr = []
         [scan_nr.append(k + 1) for k in range(len(X))]
         data = {"X": X, "Cn": Cn, "bar_width": bar_width, "time": time, "scan_nr": scan_nr, "filename": filename,
                 "used_device": used_device}
 
+    elif used_device in [5]:
+        filenames = Sup.get_filenames()
+        X, bar_width, Cn, time, n_scans = read_distribution(filenames, used_device)
+        scan_nr = []
+        for k in range(len(filenames)):
+            [scan_nr.append(k + 1) for i in range(n_scans[k])]
+        data = {"X": X, "Cn": Cn, "bar_width": bar_width, "time": time, "scan_nr": scan_nr, "filename": filenames,
+                "used_device": used_device, "n_scans": n_scans}
+
     elif used_device in [6, 7]:  # Particle Counters
+        filename = Sup.get_filename()
         Cn, el_time, start_time = read_concentration(filename, used_device)
         scan_nr = []
         [scan_nr.append(k + 1) for k in range(len(Cn))]
