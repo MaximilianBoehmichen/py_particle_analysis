@@ -122,8 +122,9 @@ def geometric_std(X, C, conc, dg):
     sigma_g = []
     for k in range(0, len(conc)):  # gave a math error for conc < 1 because conc-1 in sigma_g is < 0 then, so division
         #  is not possible
-        if conc[k] < 1:
-            sigma_g.append(np.inf) # is infinity correct here? should it just be a massiv value?
+        if conc[k] < 1.00001:
+            sigma_g.append(np.inf) # is infinity correct here? should it just be a massiv value? if after that a std is
+            # calculated for example when using mean_of_n, the std of sigma is nan of course
         else:
             sigma_g.append(math.exp(math.sqrt((np.nansum(np.square(np.log(X[k])
                                                                    - np.log(dg[k]))*C[k]))/(conc[k]-1))))

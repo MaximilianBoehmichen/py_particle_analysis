@@ -73,9 +73,9 @@ def get_data():
         X, bar_width, Cn, time = read_distribution(filenames, used_device)
         # X, bar_width, Cn, time, n_scans = read_distribution(filenames, used_device)
         scan_nr = []
-        n_scans = input("How many scans did you accquire per measurement? Give as int!")
+        n_scans = int(input("How many scans did you accquire per measurement? Give as int!"))
         for k in range(len(filenames)):
-            [scan_nr.append(k + 1) for i in range(n_scans[k])]
+            [scan_nr.append(k + 1) for i in range(n_scans)]
         data = {"X": X, "Cn": Cn, "bar_width": bar_width, "time": time, "scan_nr": scan_nr, "filename": filenames,
                 "used_device": used_device, "n_scans": n_scans}
 
