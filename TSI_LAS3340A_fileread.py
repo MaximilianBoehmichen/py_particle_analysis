@@ -8,13 +8,13 @@ from Sup import get_filenames
 def import_single_data(filename):
     data = pd.read_table(filename, sep='\t')
 
-    Cn = data.iloc[1:114, list(range(15, 114))]  # important size values in column 15 to 114
-    Cn = Cn.to_numpy()
+    counts = data.iloc[1:114, list(range(15, 114))]  # important size values in column 15 to 114
+    counts = counts.to_numpy()
 
     x_ax = data.columns.values[list(range(15, 114))]  # extracts the midpoint diameter from the pd.dataframe header
     x_ax = list(x_ax.astype(float))
-    upper_boundery = data.iloc[0,-1]
-    x_ax.append(upper_boundery)
+    upper_boundary = data.iloc[0,-1]
+    x_ax.append(upper_boundary)
     x_axis = np.array(x_ax)
 
     n_bins = len(x_axis)-1
@@ -26,18 +26,26 @@ def import_single_data(filename):
         delta_x[k] = x_axis[k + 1] - x_axis[k]
         mid_x[k] = (x_axis[k + 1] + x_axis[k])/2  # passt der, oder müsste das aus dem log berechnet werden?
 
-    X = np.zeros(Cn.shape)
-    bar_width = np.zeros(Cn.shape)
-    n_scans = len(Cn)
+    X = np.zeros(counts.shape)
+    bar_width = np.zeros(counts.shape)
+    n_scans = len(counts)
 
     time = []
+    accumulation_time = []
+    flowrate = []
+    Cn = counts.copy()
+
     for i in np.arange(n_scans):
         X[i] = mid_x
         bar_width[i] = delta_x
         time.append(datetime.strptime(data.iloc[i+1, 0] + " " + data.iloc[i+1, 1][0:8]+ " " +data.iloc[i+1, 1][-2:],
                                       '%m/%d/%Y %I:%M:%S %p'))
+        accumulation_time.append(float(data.iloc[i+1, 2]))
+        flowrate.append(float(data.iloc[i+1, 5]))
+        Cn[i] = (Cn[i] * (60 / accumulation_time[i])) / flowrate[i]
+        # raw counts are saved -> counts/accumulation_time*60s/min*accumulation_time*s/flowrate*ccm/min
 
-    return X, bar_width, Cn, time, n_scans
+    return X, bar_width, Cn, time, n_scans  # , accumulation_time, flowrate
 
 
 def import_data(filenames):
@@ -59,3 +67,6 @@ if __name__ == "__main__":
     filenames = get_filenames()
     X, bar_width, Cn, time = import_data(filenames)
     # X, bar_width, Cn, time, n_scans = import_data(filenames)
+
+    #filename = get_filename()
+    #X, bar_width, Cn, time, n_scans = import_single_data(filename)
