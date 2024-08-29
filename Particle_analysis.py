@@ -12,81 +12,26 @@ Modified 2024-03-20 to also run CPC_analysis.py which was renamed to Conc.py
 import Sup
 import Dist
 import Conc
+import Def
 import pandas as pd
 import numpy as np
 import math
 from matplotlib import pyplot as plt
 from matplotlib import ticker
 from scipy import optimize
+
 # import scipy.integrate as integrate
 # from matplotlib import cm as colormap
 
 
-def read_distribution(filename, used_device):
-    """function for importing distribution data, applying the correct import filter according to user choice and
-    importing data as X = np.array((nr_scans, nr_bins)), bar_width, Cn = X.shape, time = []"""
-    # when the numbers are changed here, they also have to be changed in Dist.format_plot() and further down in get_data
-    if used_device == 0:
-        import TSI_SMPS3071_fileread as fr  # ! utf-8 encoding for 3-superscript in the header second to last
-        # column P/cm^3 does not work sometimes, just change the ^3 to 3 in the data txt then
-    elif used_device == 1:
-        import TSI_SMPS3938_fileread as fr
-    elif used_device == 2:
-        import PALAS_SMPS2100_fileread as fr
-    elif used_device == 3:
-        import TSI_APS3321_fileread as fr
-    elif used_device == 4:
-        import PALAS_Welas_fileread as fr
-    elif used_device == 5:
-        import TSI_LAS3340A_fileread as fr
-
-    X, bar_width, Cn, time = fr.import_data(filename)
-    return X, bar_width, Cn, time
-
-
-def read_concentration(filename, used_device):
-    """function for importing concentration data, applying the correct import filter according to user choice and
-    importing data as Cn, el_time = np.array((nr_scans, nr_times)), start_time = []"""
-    if used_device == 6:
-        import TSI_CPC3775_fileread as fr
-    elif used_device == 7:
-        import PALAS_UFCPC_fileread as fr
-
-    Cn, el_time, start_time = fr.import_data(filename)
-    return Cn, el_time, start_time
-
-
 def get_data():
-    used_device = int(input("Which instrument did you use, type 0 for TSI SMPS 3081, 1 for TSI SMPS 3938, 2 for PALAS "
-                            "SMPS 2100, 3 for TSI APS 3321, 4 for PALAS Welas, 5 for TSI LAS 3340A, 6 for CPC 3775 and "
-                            "7 for PALAS UFCPC, enter as int."))
 
-    if used_device in [0, 1, 2, 3, 4]:  # Size Distribution Instruments
-        filename = Sup.get_filename()
-        X, bar_width, Cn, time = read_distribution(filename, used_device)
-        scan_nr = []
-        [scan_nr.append(k + 1) for k in range(len(X))]
-        data = {"X": X, "Cn": Cn, "bar_width": bar_width, "time": time, "scan_nr": scan_nr, "filename": filename,
-                "used_device": used_device}
+    print(Def.device_list[["Device_Identifier", "Device", "Manufacturer"]].to_string(justify="left", index=False))
+    used_device = int(input("Which instrument did you use? Enter as int."))
 
-    elif used_device == 5:
-        filenames = Sup.get_filenames()
-        X, bar_width, Cn, time = read_distribution(filenames, used_device)
-        # X, bar_width, Cn, time, n_scans = read_distribution(filenames, used_device)
-        scan_nr = []
-        n_scans = int(input("How many scans did you accquire per measurement? Give as int!"))
-        for k in range(len(filenames)):
-            [scan_nr.append(k + 1) for i in range(n_scans)]
-        data = {"X": X, "Cn": Cn, "bar_width": bar_width, "time": time, "scan_nr": scan_nr, "filename": filenames,
-                "used_device": used_device, "n_scans": n_scans}
-
-    elif used_device in [6, 7]:  # Particle Counters
-        filename = Sup.get_filename()
-        Cn, el_time, start_time = read_concentration(filename, used_device)
-        scan_nr = []
-        [scan_nr.append(k + 1) for k in range(len(Cn))]
-        data = {"Cn": Cn, "el_time": el_time,
-                "start_time": start_time, "scan_nr": scan_nr, "filename": filename, "used_device": used_device}
+    if used_device in Def.device_list["Device_Identifier"]:  # Size Distribution Instruments
+        fr = __import__(Def.device_list["Import_Script"][used_device])
+        data = fr.import_data_dict()
 
     else:
         print(f"Device {used_device} is not a viable option")
