@@ -122,7 +122,7 @@ if __name__ == "__main__":
     lowerbound = 100 #in the unit, the size data are saved by the instrument e.g. nm
     upperbound = 350
     cut_nrs = [1, 5, 7, 15]
-    cut_X, cut_Cn, cut_bar_width = Dist.cut_dist(sel_data["X"], sel_data["Cn"], sel_data["bar_width"], lowerbound,
+    cut_X, cut_Cn, cut_dX = Dist.cut_dist(sel_data["X"], sel_data["Cn"], sel_data["dX"], lowerbound,
     upperbound, cut_nrs)
     
     Allows to cut specific measurements to a more narrow size region, usually selected data should be used, but also 
@@ -140,7 +140,7 @@ if __name__ == "__main__":
     ## Calculation of Geometric Parameters
     
     data_identifier["dg", "sigma_g"] = Dist.calc_geometry(data_identifier["X"], data_identifier["Cn"],
-        data_identifier["calc_conc_n"], data_identifier["bar_width"])
+        data_identifier["calc_conc_n"], data_identifier["dX"])
     
     Calculation the geometrical mean and the geometrical standard deviation. Is called in "typical_calculations", so
     calling it on its own is not usually necessary. Also works for selected data. In mean data, the dg and sigma are

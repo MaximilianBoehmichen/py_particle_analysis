@@ -21,7 +21,7 @@ from Def import device_list
 def import_data(filename):
     """import cpc data from txt file with name filename to pd dataframe, also includes time, some settings and some
     statistical values calculated by the TSI program
-    then extract the actual measuring data from the dataframe and give X, bar_width, Cn and time
+    then extract the actual measuring data from the dataframe and give Cn, el_time, start_time
     to work, the data has to be exported in rows"""
 
     data = pd.read_table(filename, sep='\t', header=2, index_col=0,

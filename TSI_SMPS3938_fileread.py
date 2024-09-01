@@ -20,7 +20,7 @@ import Dist
 def import_data(filename):
     """import smps data from txt file with name filename to pd dataframe, also includes time, some settings and some
     statistical values calculated by the TSI program
-    then extract the actual measuring data from the dataframe and give X, bar_width, Cn and time
+    then extract the actual measuring data from the dataframe and give X, dX, Cn and time
     to work, the data has to be exported in rows"""
     data = pd.read_table(filename, sep='\t', header=25, engine='python', encoding='iso-8859-1')
     # originally ansi which is superset of iso; smps file is in encoding = ansi which caused an import error off cm^3

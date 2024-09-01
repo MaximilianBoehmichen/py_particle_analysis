@@ -31,7 +31,7 @@ def select_data(data, sel_nrs):  # merge with cut_dist ?
     sel_Cn = np.zeros((len(scan_nrs), data["Cn"].shape[1]))
     # preallocate the np arrays in the correct size (nr of measurements, nr of measuring data)
     sel_X = np.zeros_like(sel_Cn)  # maybe nan is needed to avoid zeros on the right of the x-data?
-    sel_bar_width = np.zeros_like(sel_Cn)
+    sel_dX = np.zeros_like(sel_Cn)
     sel_time = []
     sel_scan_nr = []
     sel_filename = []
@@ -40,24 +40,24 @@ def select_data(data, sel_nrs):  # merge with cut_dist ?
     for k in np.arange(len(scan_nrs)):  # fill the arrays with the selected data
         sel_Cn[k, :] = data["Cn"][scan_nrs[k], :]
         sel_X[k, :] = data["X"][scan_nrs[k], :]
-        sel_bar_width[k, :] = data["bar_width"][scan_nrs[k], :]
+        sel_dX[k, :] = data["dX"][scan_nrs[k], :]
         sel_time.append(data["time"][scan_nrs[k]])
         sel_scan_nr.append(data["scan_nr"][scan_nrs[k]])
         sel_filename.append(data["filename"])
         sel_used_device.append(data["used_device"])
-    sel_data = {"X": sel_X, "Cn": sel_Cn, "bar_width": sel_bar_width, "time": sel_time, "scan_nr": sel_scan_nr,
+    sel_data = {"X": sel_X, "Cn": sel_Cn, "dX": sel_dX, "time": sel_time, "scan_nr": sel_scan_nr,
                 "filename": sel_filename, "used_device": sel_used_device}
     return sel_data
 
 
-def convert_cn_to_cn_dlogx(data):
-    data["Cn_dlogX"] = data["Cn"]/data["dlogX"]
-    return data
-
-
-def convert_cn_dlogx_to_cn(data):
-    data["Cn"] = data["Cn_dlogX"]*data["dlogX"]
-    return data
+# def convert_cn_to_cn_dlogx(data):
+#     data["Cn_dlogX"] = data["Cn"]/data["dlogX"]
+#     return data
+#
+#
+# def convert_cn_dlogx_to_cn(data):
+#     data["Cn"] = data["Cn_dlogX"]*data["dlogX"]
+#     return data
 
 
 def get_conc(C):
@@ -69,23 +69,23 @@ def get_conc(C):
     return calc_conc
 
 
-def cut_dist(X, C, bar_width, lowerbound, upperbound, scan_nrs):  # merge with select_data
+def cut_dist(X, C, dX, lowerbound, upperbound, scan_nrs):  # merge with select_data
     """to cut a part of the spectrum"""
     cut_nrs = Sup.py_logic_converter(scan_nrs)
     strt_idx = np.where(X[0] > lowerbound)[0][0]
     end_idx = np.where(X[0] < upperbound)[-1][-1] + 1
     cut_X = np.zeros((len(cut_nrs), len(X[0, strt_idx:end_idx])))
     cut_C = np.zeros((len(cut_nrs), len(C[0, strt_idx:end_idx])))
-    cut_bar_width = np.zeros((len(cut_nrs), len(bar_width[0, strt_idx:end_idx])))
+    cut_dX = np.zeros((len(cut_nrs), len(dX[0, strt_idx:end_idx])))
     cut_conc = []
     ct = 0
     for k in cut_nrs:
         cut_X[ct, :] = X[k, strt_idx:end_idx]
         cut_C[ct, :] = C[k, strt_idx:end_idx]
-        cut_bar_width[ct, :] = bar_width[k, strt_idx:end_idx]
+        cut_dX[ct, :] = dX[k, strt_idx:end_idx]
         cut_conc = np.nansum(cut_C[ct, :])
         ct += 1
-    return cut_X, cut_C, cut_bar_width, cut_conc # write into dict
+    return cut_X, cut_C, cut_dX, cut_conc # write into dict
 
 
 def merge_data(sel_data_list):
@@ -93,7 +93,7 @@ def merge_data(sel_data_list):
     merged_data = {}
     merged_data["X"] = sel_data_list[0]["X"]
     merged_data["Cn"] = sel_data_list[0]["Cn"]
-    merged_data["bar_width"] = sel_data_list[0]["bar_width"]
+    merged_data["dX"] = sel_data_list[0]["dX"]
     merged_data["time"] = sel_data_list[0]["time"][:]
     merged_data["scan_nr"] = sel_data_list[0]["scan_nr"][:]
     merged_data["origin"] = []
@@ -101,7 +101,7 @@ def merge_data(sel_data_list):
     for i in sel_data_list[1:]:
         merged_data["X"] = np.append(merged_data["X"], i["X"], axis=0)
         merged_data["Cn"] = np.append(merged_data["Cn"], i["Cn"], axis=0)
-        merged_data["bar_width"] = np.append(merged_data["bar_width"], i["bar_width"], axis=0)
+        merged_data["dX"] = np.append(merged_data["dX"], i["dX"], axis=0)
         for k in range(len(i["scan_nr"])):
             merged_data["time"].append(i["time"][k])
             merged_data["scan_nr"].append(i["scan_nr"][k])
@@ -160,7 +160,7 @@ def geometric_std(X, C, conc, dg):
     return sigma_g
 
 
-def lognormal_dist(conc, sigma_g, dg, X, bar_width):
+def lognormal_dist(conc, sigma_g, dg, X, dX):
     """calculates a normal distribution based on the concentration, the median diameter and the geometric standard
     deviation"""
     fit = np.zeros_like(X)
@@ -208,11 +208,11 @@ def lognormal_fit(X, C):
     return A_fit, m_fit, sigma_fit ,Cn_fit
 
 
-def calc_geometry(X, C, conc, bar_width):
+def calc_geometry(X, C, conc, dX):
     """calculates geometric parameters of the distributions"""
-    dg = geometric_mean(X, C, conc)   # spectra by using sel_X, sel_Cn, calc_conc_n, sel_bar_width
+    dg = geometric_mean(X, C, conc)   # spectra by using sel_X, sel_Cn, calc_conc_n, sel_dX
     sigma_g = geometric_std(X, C, conc, dg)
-    #fit = lognormal_dist(conc, sigma_g, dg, X, bar_width)
+    #fit = lognormal_dist(conc, sigma_g, dg, X, dX)
     return dg, sigma_g#, fit
 
 
@@ -247,7 +247,7 @@ def cumulative_diameters(X, cumC):
 
 def typical_calculations(data):
     data["calc_conc_n"] = get_conc(data["Cn"])
-    data["dg"], data["sigma"] = calc_geometry(data["X"], data["Cn"], data["calc_conc_n"], data["bar_width"])
+    data["dg"], data["sigma"] = calc_geometry(data["X"], data["Cn"], data["calc_conc_n"], data["dX"])
     data["cumC"] = cumulative_distribution(data["Cn"])
     data["X10"], data["X16"], data["X50"], data["X84"], data["X90"] = cumulative_diameters(data["X"], data["cumC"])
     return data
@@ -259,7 +259,7 @@ def mean_of_n(data, nr_mean):
     only works with more than 3 measurements"""
     C = data["Cn"]
     X = data["X"]
-    bar_width = data["bar_width"]
+    dX = data["dX"]
     calc_conc = data["calc_conc_n"]
     dg = data["dg"]
     sigma = data["sigma"]
@@ -269,7 +269,7 @@ def mean_of_n(data, nr_mean):
     mean_C = np.zeros(shape=(nth_len, size[1]))  # np.nans?
     std_C = np.zeros_like(mean_C)
     mean_X = np.zeros_like(mean_C)
-    mean_bar_width = np.zeros_like(mean_C)
+    mean_dX = np.zeros_like(mean_C)
     mean_conc = []
     std_conc = []
     mean_dg = []
@@ -280,14 +280,14 @@ def mean_of_n(data, nr_mean):
         mean_C[k, :] = np.mean(C[(k*n):((k+1)*n), :], axis=0)
         std_C[k, :] = np.std(C[(k*n):((k+1)*n), :], axis=0)
         mean_X[k, :] = np.mean(X[(k*n):((k+1)*n), :], axis=0)
-        mean_bar_width[k, :] = np.mean(bar_width[(k * n):((k + 1) * n), :], axis=0)
+        mean_dX[k, :] = np.mean(dX[(k * n):((k + 1) * n), :], axis=0)
         mean_conc.append(np.mean(calc_conc[(k * n):((k + 1) * n), ], axis=0))
         std_conc.append(np.std(calc_conc[(k * n):((k + 1) * n), ], axis=0))
         mean_dg.append(np.mean(dg[(k * n):((k + 1) * n)], axis=0))
         std_dg.append(np.std(dg[(k * n):((k + 1) * n)], axis=0))
         mean_sigma.append(np.mean(sigma[(k * n):((k + 1) * n)], axis=0))
         std_sigma.append(np.std(sigma[(k * n):((k + 1) * n)], axis=0))
-    mean_data = {"mean_X": mean_X, "mean_C": mean_C, "std_C": std_C, "bar_width": mean_bar_width,
+    mean_data = {"mean_X": mean_X, "mean_C": mean_C, "std_C": std_C, "dX": mean_dX,
                  "mean_conc": mean_conc, "std_conc": std_conc, "mean_dg": mean_dg,"std_dg":std_dg,
                  "mean_sigma": mean_sigma, "std_sigma": std_sigma, "used_device": data["used_device"]}
     return mean_data
@@ -300,7 +300,7 @@ def merge_mean_data(mean_data_list):
     merged_mean_data["mean_X"] = mean_data_list[0]["mean_X"]
     merged_mean_data["mean_C"] = mean_data_list[0]["mean_C"]
     merged_mean_data["std_C"] = mean_data_list[0]["std_C"]
-    merged_mean_data["bar_width"] = mean_data_list[0]["bar_width"]
+    merged_mean_data["dX"] = mean_data_list[0]["dX"]
     merged_mean_data["mean_conc"] = mean_data_list[0]["mean_conc"][:]
     merged_mean_data["std_conc"] = mean_data_list[0]["std_conc"][:]
     merged_mean_data["mean_dg"] = mean_data_list[0]["mean_dg"][:]
@@ -309,7 +309,7 @@ def merge_mean_data(mean_data_list):
         merged_mean_data["mean_X"] = np.append(merged_mean_data["mean_X"], i["mean_X"], axis=0)
         merged_mean_data["mean_C"] = np.append(merged_mean_data["mean_C"], i["mean_C"], axis=0)
         merged_mean_data["std_C"] = np.append(merged_mean_data["std_C"], i["std_C"], axis=0)
-        merged_mean_data["bar_width"] = np.append(merged_mean_data["bar_width"], i["bar_width"], axis=0)
+        merged_mean_data["dX"] = np.append(merged_mean_data["dX"], i["dX"], axis=0)
         merged_mean_data["mean_conc"].extend(i["mean_conc"])
         merged_mean_data["std_conc"].extend(i["std_conc"])
         merged_mean_data["mean_dg"].extend(i["mean_dg"])
@@ -319,7 +319,7 @@ def merge_mean_data(mean_data_list):
 
 def typical_calculations_mean(data):
     data["calc_conc_n"] = get_conc(data["mean_C"])
-    data["dg"], data["sigma"] = calc_geometry(data["mean_X"], data["mean_C"], data["calc_conc_n"], data["bar_width"])
+    data["dg"], data["sigma"] = calc_geometry(data["mean_X"], data["mean_C"], data["calc_conc_n"], data["dX"])
     return data
 
 
@@ -387,7 +387,7 @@ def format_plot(fig, ax, used_device):
 def plot_singledata(data, scan_nrs):
     """plots the given data, specify measurement to use from sel_Cn array"""
     X = data["X"]
-    bar_width = data["bar_width"]
+    dX = data["dX"]
     Cn = data["Cn"]
     calc_conc_n = data["calc_conc_n"]
     used_device = data["used_device"]
@@ -395,7 +395,7 @@ def plot_singledata(data, scan_nrs):
     fig, ax = plt.subplots()  # height with title 12, without 10
     if len(plot_nrs) == 1:
         k = plot_nrs[0]
-        ax.bar(X[k, :], Cn[k, :], width=bar_width[k, :], edgecolor='black')
+        ax.bar(X[k, :], Cn[k, :], width=dX[k, :], edgecolor='black')
         legend_entries = [input(f"Please enter the legend entry for scan {scan_nrs[0]}")]
         # scan_nrs is used here on purpose
         print(f"scan {k} conc. = " + "{:e}".format(float(calc_conc_n[k])) + " P/cm" + u"\u00B3")
@@ -403,7 +403,7 @@ def plot_singledata(data, scan_nrs):
         legend_entries = []
         ct = 0
         for k in plot_nrs:
-            ax.bar(X[k, :], Cn[k, :], width=bar_width[k, :], edgecolor='black', alpha=0.5)
+            ax.bar(X[k, :], Cn[k, :], width=dX[k, :], edgecolor='black', alpha=0.5)
             legend_entries.append(input(f"Please enter the legend entry for scan {scan_nrs[ct]}"))
             print(f"scan {k} conc. = " + "{:e}".format(float(calc_conc_n[k])) + " P/cm" + u"\u00B3")
             ct += 1
@@ -428,7 +428,7 @@ def plot_meandata(mean_data, scan_nrs):
     in the given Cn and C arrays"""
     # add a mean of n in a corner of the plot
     mean_X = mean_data["mean_X"]
-    mean_bar_width = mean_data["bar_width"]
+    mean_dX = mean_data["dX"]
     mean_C = mean_data["mean_C"]
     std_C = mean_data["std_C"]
     mean_conc_n = mean_data["mean_conc"]
@@ -440,7 +440,7 @@ def plot_meandata(mean_data, scan_nrs):
     fig, ax = plt.subplots()  # height with title 12, without 10
     legend_entries = []
     for k in plot_nrs:
-        ax.bar(mean_X[k, :], mean_C[k, :], width=mean_bar_width[k, :], yerr=std_C[k, :], edgecolor='black')
+        ax.bar(mean_X[k, :], mean_C[k, :], width=mean_dX[k, :], yerr=std_C[k, :], edgecolor='black')
         user_input = input(f"Please enter the legend entry for scan {k+1}")
         legend_entries.append(user_input + " (" + str("{:.2f}".format(float(mean_dg[k]))) + u"\u00B1" +
            str("{:.2f}".format(float(std_dg[k]))) + " nm)")
@@ -461,7 +461,7 @@ def plot_cummdata(data, used_device, scan_nrs):
     """plots the given data, specify measurement to use from sel_Cn array"""
     # seems to work, just needs another axis label to indicate it is cummulative :D
     X = data["X"]
-    bar_width = data["bar_width"]
+    dX = data["dX"]
     cummCn = data["cummCn"]
     calc_conc_n = data["calc_conc_n"]
     normcummCn = np.zeros_like(cummCn)
@@ -474,7 +474,7 @@ def plot_cummdata(data, used_device, scan_nrs):
     fig, ax = plt.subplots()  # height with title 12, without 10
     if len(plot_nrs) == 1:
         k = plot_nrs[0]
-        ax.bar(X[k, :], normcummCn[k, :], width=bar_width[k, :], edgecolor='black')
+        ax.bar(X[k, :], normcummCn[k, :], width=dX[k, :], edgecolor='black')
         legend_entries = [input(f"Please enter the legend entry for scan {scan_nrs[0]}")]
         # scan_nrs is used here on purpose
         print(f"scan {k} conc. = " + "{:e}".format(float(calc_conc_n[k])) + " P/cm" + u"\u00B3")
@@ -482,7 +482,7 @@ def plot_cummdata(data, used_device, scan_nrs):
         legend_entries = []
         ct = 0
         for k in plot_nrs:
-            ax.bar(X[k, :], normcummCn[k, :], width=bar_width[k, :], edgecolor='black', alpha=0.5)
+            ax.bar(X[k, :], normcummCn[k, :], width=dX[k, :], edgecolor='black', alpha=0.5)
             legend_entries.append(input(f"Please enter the legend entry for scan {scan_nrs[ct]}"))
             print(f"scan {k} conc. = " + "{:e}".format(float(calc_conc_n[k])) + " P/cm" + u"\u00B3")
             ct += 1

@@ -8,10 +8,10 @@ Data has to be exported in rows
 Created 2021-10-22 - 2021-10-26
 @written by Kevin Maier (kevin.r.maier@tum.de)
 2021-11-17: title of the produced figures now in two lines, added concentration to be extracted, averaged, printed
-2022-01-18: started to modify it, to work with SMPS_analysis_v0 -> continue this later on, shifted bar_width from
+2022-01-18: started to modify it, to work with SMPS_analysis_v0 -> continue this later on, shifted dX from
                 plot to extract function, changed mean_of_3 to mean of n, which was ez
 2022-03-03: reworked it, so it can be used as import filter for SMPS_analysis_v0 -> removed all doubly functions
-                now gives X, bar_width, Cn and time as newSMPS_fileread_v4.py
+                now gives X, dX, Cn and time as newSMPS_fileread_v4.py
 2022-10-17: transferred to gitlab, old versioning was removed, so all referenced files ..._vX were renamed without
     version number
 2023-01-19: filename is retrieved from SMPS_analysis now
@@ -27,14 +27,16 @@ from Def import device_list
 def import_data(filename):
     """import smps data from txt file with name filename to pd dataframe, also includes time, some settings and some
     statistical values calculated by the TSI program
-    then extract the actual measuring data from the dataframe and give X, bar_width, Cn and time
+    then extract the actual measuring data from the dataframe and give X, dX, Cn and time
     to work, the data has to be exported in rows"""
-    device_info = pd.read_table(filename, sep='\t', nrows=17,  engine='python', encoding='iso-8859-1')
-    # read device_info from txt file to maybe extract something later
     data = pd.read_table(filename, sep='\t', header=17, index_col=0,
                          engine='python', encoding='iso-8859-1')  # originally ansi which is superset of iso
     # smps file is in encoding = ansi which caused an import error off cm^3 due to wrong encoding setting
     # changed to iso as ansi is windows only and iso also works on linux
+
+    # data file has variable number of data columns depending on measuring range set
+
+
 
     Cn = data.iloc[:, list(range(7, 114))] #extracts the data by column location
     Cn = Cn.to_numpy()
@@ -62,23 +64,23 @@ def import_data(filename):
     #     Cn[k] = Cn[k]*log_delta_x[k]
 
     X = np.zeros(Cn.shape)
-    bar_width = np.zeros(Cn.shape)
+    dX = np.zeros(Cn.shape)
     time = []
     for i in np.arange(len(Cn)):
         X[i] = x_axis
-        bar_width[i] = delta_x
+        dX[i] = delta_x
         time.append(datetime.strptime(data.iloc[i, 0] + " " + data.iloc[i, 1], '%m/%d/%y %H:%M:%S'))
 
-    return X, bar_width, Cn, time
+    return X, dX, Cn, time
 
 
 def import_data_dict():
     filename = get_filename()
-    X, bar_width, Cn, time = import_data(filename)
+    X, dX, Cn, time = import_data(filename)
     scan_nr = []
     [scan_nr.append(k + 1) for k in range(len(Cn))]
     used_device = device_list.query("Import_Script=='TSI_SMPS3071_fileread'")["Device_Identifier"].values[0]
-    data_dict = {"X": X, "Cn": Cn, "bar_width": bar_width, "time": time, "scan_nr": scan_nr, "filename": filename,
+    data_dict = {"X": X, "Cn": Cn, "dX": dX, "time": time, "scan_nr": scan_nr, "filename": filename,
                  "used_device": used_device}
     return data_dict
 
@@ -86,4 +88,4 @@ def import_data_dict():
 if __name__ == "__main__":
 
     filename = get_filename()
-    X, bar_width, Cn, time = import_data(filename)
+    X, dX, Cn, time = import_data(filename)
