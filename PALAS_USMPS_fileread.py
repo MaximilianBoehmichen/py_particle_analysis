@@ -72,9 +72,9 @@ def import_data(filename):
     Xl = np.zeros_like(X)
     Xu = np.zeros_like(X)
     Cn = np.zeros_like(X)
-    X[:] = np.nan  # fill the arrays with nans, so all none filled values are nans later and not 0
-    Xl[:] = np.nan
-    Xu[:] = np.nan
+    X[:] = np.nan  # fill the arrays with nans, so all none filled values are nans later and not 0, necessary as within
+    Xl[:] = np.nan  # one file, the measurint range can be changed easily on the PALAS SMPS leading to differently sized
+    Xu[:] = np.nan  # data width
     Cn[:] = np.nan
 
     conc_data = input("Which of the available concentration data do you want to import? Type 3 for raw, 4 for "
@@ -107,6 +107,7 @@ def import_data(filename):
     time = []  # defining time list
     for i in range(nr_scans):
         time.append(datetime.strptime(parametersDF["Date"][i] + " " + parametersDF["Time"][i], '%m/%d/%Y %I:%M %p'))
+        #
 
     scan_nr = []
     [scan_nr.append(k + 1) for k in range(len(Cn))]
@@ -145,6 +146,7 @@ def import_data_dict():
 if __name__ == "__main__":
 
     filename = get_filename()
-    X, dX, dlogX, Cn, Cn_dlogX, time, add_info = import_data(filename)
+    X, dX, dlogX, Cn, Cn_dlogX, add_info = import_data(filename)
+    print(f"imported {filename}")
 
 
