@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-TSI_SMPS3938_fileread.py
+TSI_SMPS_fileread.py
 
 Script for Data Evaluation of the TSI SMPS consisting of Classifier 3082 and CPC 3775
 Data has to be exported in rows and plot is written, so that it displays the dW/logDp
 
-Created 2024-05-01 as copy of TSI_SMPS3938_fileread.py
+Created 2024-05-01 as copy of TSI_SMPS3071_fileread.py
 @written by Kevin Maier (kevin.r.maier@tum.de)
 """
 
@@ -14,10 +14,72 @@ import pandas as pd
 from datetime import datetime
 from Sup import get_filename
 from Def import device_list
-import Dist
 
 
-def import_data(filename):
+def def_used_smps(used_device):
+    """define parameters that are different between the different smps systems"""
+
+    if used_device == device_list.query("Device=='SMPS 3938'")["Device_Identifier"].values[0]:
+        # compare the used_device parameter taken from particle_analysis.get_data() to the values defined in
+        # Def.device_list - done this way, so device_list can be changed easily without having to rewrite everything
+        nonconccolumns = ['Sample #', 'Date', 'Start Time', 'Sample Temp (C)', 'Sample Pressure (kPa)',
+                            'Relative Humidity (%)', 'Mean Free Path (m)', 'Gas Viscosity (Pa*s)',
+                            'Diameter Midpoint (nm)', 'Scan Time (s)', 'Retrace Time (s)', 'Scan Resolution (Hz)',
+                            'Scans Per Sample', 'Sheath Flow (L/min)', 'Aerosol Flow (L/min)', 'Bypass Flow (L/min)',
+                            'Low Voltage (V)', 'High Voltage (V)', 'Lower Size (nm)', 'Upper Size (nm)',
+                            'Density (g/cm³)', 'td + 0.5 (s)', 'tf (s)', 'D50 (nm)', 'Neutralizer Status ',
+                            'Median (nm)', 'Mean (nm)', 'Geo. Mean (nm)', 'Mode (nm)', 'Geo. Std. Dev.',
+                            'Total Conc. (#/cm³)', 'Title', 'User Name', 'Sample ID', 'Instrument ID', 'Lab ID',
+                            'Leak Test and Leakage Rate', 'Instrument Errors', 'Comment']
+        header_pos = 25
+        time_format = '%m/%d/%Y %H:%M:%S'
+
+        # "Neutralizer Status " is not contained in every measurement file... additionally it has a space in the column
+        # added the following part to avoid the KeyError - key not found in files that do not contain this column
+        # seems to work also for other fields that are not contained in the data :D Only when new fields are in the
+        # data, but not in the list above, they should be addded to the list.
+
+    elif used_device == device_list.query("Device=='SMPS 3071'")["Device_Identifier"].values[0]:
+        nonconccolumns = ['Sample #', 'Date', 'Start Time', 'Sample Temp (C)', 'Sample Pressure (kPa)',
+                            'Relative Humidity (%)', 'Mean Free Path (m)', 'Gas Viscosity (Pa*s)',
+                            'Diameter Midpoint (nm)', 'Scan Time (s)', 'Retrace Time (s)', 'Down Scan First',
+                            'Scans Per Sample', 'Impactor Type (cm)', 'Sheath Flow (L/min)', 'Aerosol Flow (L/min)',
+                            'CPC Inlet Flow (L/min)', 'CPC Sample Flow (L/min)', 'Low Voltage (V)', 'High Voltage (V)',
+                            'Lower Size (nm)', 'Upper Size (nm)', 'Density (g/cm³)', 'td (s)', 'tf (s)', 'D50 (nm)',
+                            'Median (nm)', 'Mean (nm)', 'Geo. Mean (nm)', 'Mode (nm)', 'Geo. Std. Dev.',
+                            'Total Conc. (#/cm³)', 'Title', 'Status Flag', 'Comment']
+        header_pos = 17
+        time_format = '%m/%d/%y %H:%M:%S'
+    else:
+        print(f"Device {used_device} is not a viable option")
+        nonconccolumns = used_device
+        header_pos = used_device
+        time_format = used_device
+
+    return nonconccolumns, header_pos, time_format
+
+
+def rename_columns(df, used_device):
+    """rename the colums, so they follow the same scheme as the 3938 columns"""
+    if used_device == device_list.query("Device=='SMPS 3071'")["Device_Identifier"].values[0]:
+        mapping = {'Diameter Midpoint': 'Diameter Midpoint (nm)', 'Scan Up Time(s)': 'Scan Time (s)',
+                    'Retrace Time(s)': 'Retrace Time (s)', 'Impactor Type(cm)': 'Impactor Type (cm)',
+                    'Sheath Flow(lpm)': 'Sheath Flow (L/min)', 'Aerosol Flow(lpm)': 'Aerosol Flow (L/min)',
+                    'CPC Inlet Flow(lpm)': 'CPC Inlet Flow (L/min)', 'CPC Sample Flow(lpm)': 'CPC Sample Flow (L/min)',
+                    'Low Voltage': 'Low Voltage (V)', 'High Voltage': 'High Voltage (V)',
+                    'Lower Size(nm)' : 'Lower Size (nm)', 'Upper Size(nm)': 'Upper Size (nm)',
+                    'Density(g/cc)': 'Density (g/cm³)', 'td(s)': 'td (s)', 'tf(s)': 'tf (s)',
+                    'D50(nm)': 'D50 (nm)', 'Median(nm)': 'Median (nm)', 'Mean(nm)': 'Mean (nm)',
+                    'Geo. Mean(nm)': 'Geo. Mean (nm)', 'Mode(nm)': 'Mode (nm)',
+                    'Total Conc.(#/cm3)': 'Total Conc. (#/cm³)'}
+        df.rename(columns=mapping, inplace=True)
+    else:
+        pass
+
+    return df
+
+
+def import_data(filename, used_device):
     """import smps data from txt file with name filename to pd dataframe, also includes time, some settings and some
     statistical values calculated by the TSI program
     then extract the actual measuring data from the dataframe and give X, dX, Cn and time
@@ -26,38 +88,16 @@ def import_data(filename):
     # data file has variable number of data columns depending on measuring range set so conc data has to be constructed
     # from difference of all columns and the non conc columns
 
-    TSI_SMPS3938_list = ['Sample #', 'Date', 'Start Time', 'Sample Temp (C)', 'Sample Pressure (kPa)',
-                      'Relative Humidity (%)', 'Mean Free Path (m)', 'Gas Viscosity (Pa*s)', 'Diameter Midpoint (nm)',
-                      'Scan Time (s)', 'Retrace Time (s)', 'Scan Resolution (Hz)', 'Scans Per Sample',
-                      'Sheath Flow (L/min)', 'Aerosol Flow (L/min)', 'Bypass Flow (L/min)', 'Low Voltage (V)',
-                      'High Voltage (V)', 'Lower Size (nm)', 'Upper Size (nm)', 'Density (g/cm³)', 'td + 0.5 (s)',
-                      'tf (s)', 'D50 (nm)', 'Neutralizer Status ', 'Median (nm)', 'Mean (nm)', 'Geo. Mean (nm)',
-                      'Mode (nm)', 'Geo. Std. Dev.', 'Total Conc. (#/cm³)', 'Title', 'User Name', 'Sample ID',
-                      'Instrument ID', 'Lab ID', 'Leak Test and Leakage Rate', 'Instrument Errors', 'Comment']
+    nonconccolumns, header_pos, time_format = def_used_smps(used_device)
 
-    # "Neutralizer Status " is not contained in every measurement file... additionally it has a space in the column
-    # added the following part to avoid the KeyError - key not found in files that do not contain this column
-    # seems to work also for other fields that are not contained in the data :D Only when new fields are in the data,
-    # but not in the list above, they should be addded to the list.
-
-    TSI_SMPS3071_list = ['Sample #', 'Date', 'Start Time', 'Sample Temp (C)', 'Sample Pressure (kPa)',
-                         'Relative Humidity (%)', 'Mean Free Path (m)', 'Gas Viscosity (Pa*s)',
-                         'Diameter Midpoint (nm)',
-                         'Scan Time (s)', 'Retrace Time (s)', 'Scan Resolution (Hz)', 'Scans Per Sample',
-                         'Sheath Flow (L/min)', 'Aerosol Flow (L/min)', 'Bypass Flow (L/min)', 'Low Voltage (V)',
-                         'High Voltage (V)', 'Lower Size (nm)', 'Upper Size (nm)', 'Density (g/cm³)', 'td + 0.5 (s)',
-                         'tf (s)', 'D50 (nm)', 'Neutralizer Status ', 'Median (nm)', 'Mean (nm)', 'Geo. Mean (nm)',
-                         'Mode (nm)', 'Geo. Std. Dev.', 'Total Conc. (#/cm³)', 'Title', 'User Name', 'Sample ID',
-                         'Instrument ID', 'Lab ID', 'Leak Test and Leakage Rate', 'Instrument Errors', 'Comment']
-
-    nonconccolumns
-
-    data = pd.read_table(filename, sep='\t', header=25, engine='python', encoding='iso-8859-1')
+    data = pd.read_table(filename, sep='\t', header=header_pos, engine='python', encoding='iso-8859-1')
     # originally ansi which is superset of iso; smps file is in encoding = ansi which caused an import error off cm^3
     # due to wrong encoding setting changed to iso as ansi is windows only and iso also works on linux
 
     # data = data.reset_index(drop=True)  # resetting index, anecessary, when Sample # column is used as index col in
     # pd.read_table -> removed as Sample # is used to directly generate Scan Nr
+
+    data = rename_columns(data, used_device)
 
     nr_scans = len(data)
 
@@ -146,7 +186,7 @@ def import_data(filename):
     # calculating time list from dates and times given in measurement file
     time = []
     for i in range(nr_scans):
-        time.append(datetime.strptime(data["Date"][i] + " " + data["Start Time"][i], '%m/%d/%Y %H:%M:%S'))
+        time.append(datetime.strptime(data["Date"][i] + " " + data["Start Time"][i], time_format))
 
     add_info.insert(loc=0, column="Time", value=time)
     add_info.insert(loc=0, column="Scan Nr", value=data["Sample #"])
@@ -156,7 +196,7 @@ def import_data(filename):
 
 def import_data_dict(used_device):
     filename = get_filename()
-    X, dX, dlogX, Cn, Cn_dlogX, add_info = import_data(filename)
+    X, dX, dlogX, Cn, Cn_dlogX, add_info = import_data(filename, used_device)
     # used_device = device_list.query("Import_Script=='TSI_SMPS3938_fileread'")["Device_Identifier"].values[0]
     data_dict = {"X": X, "dX": dX, "dlogX": dlogX, "Cn": Cn, "Cn_dlogX": Cn_dlogX, "filename": filename,
                  "used_device": used_device, "add_info":add_info}
@@ -166,7 +206,10 @@ def import_data_dict(used_device):
 if __name__ == "__main__":
 
     filename = get_filename()
-    used_device = int(input("Which instrument did you use? Enter as int. 0 for TSI SMPS 3938, 1 for TSI SMPS 3071"))
+    SMPS_3071_id = device_list.query("Device=='SMPS 3071'")["Device_Identifier"].values[0]
+    SMPS_3938_id = device_list.query("Device=='SMPS 3938'")["Device_Identifier"].values[0]
+    print(f"{SMPS_3071_id} = SMPS 3071; {SMPS_3938_id} = SMPS 3938")
+    used_device = int(input("Which instrument did you use? Enter as int."))
     X, dX, dlogX, Cn, Cn_dlogX, add_info = import_data(filename, used_device)
     print(f"imported {filename}")
 

@@ -12,8 +12,8 @@ Created 2024-08-29
 import pandas as pd
 
 device_list = pd.DataFrame([
-    [0, "SMPS 3071", "TSI", "Number Distribution", "Electrodynamic", "nm", "TSI_SMPS3071_fileread"],
-    [1, "SMPS 3938", "TSI", "Number Distribution", "Electrodynamic", "nm", "TSI_SMPS3938_fileread"],
+    [0, "SMPS 3071", "TSI", "Number Distribution", "Electrodynamic", "nm", "TSI_SMPS_fileread"],
+    [1, "SMPS 3938", "TSI", "Number Distribution", "Electrodynamic", "nm", "TSI_SMPS_fileread"],
     [2, "U-SMPS", "PALAS", "Number Distribution", "Electrodynamic", "nm", "PALAS_USMPS_fileread"],
     [3, "APS 3321", "TSI", "Number Distribution", "Aerodynamic", u"\xb5m", "TSI_APS3321_fileread"],
     [4, "WELAS", "PALAS", "Number Distribution", "Optical", u"\xb5m", "PALAS_WELAS_fileread"],
