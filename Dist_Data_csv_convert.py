@@ -4,11 +4,13 @@ Dist_Data_csv_convert.py
 
 writing of SMPS data to Excel for student internship
 
-Created 2022-06-20
+Created 2022-06-20 as PALAS_SMPS2100_csv_convert.py
 @written by Kevin Maier (kevin.r.maier@tum.de)
 
 2022-10-17: transferred to gitlab, old versioning was removed, so all referenced files ..._vX were renamed without
     version number
+2024-09-02: Changed name to Dist_Data_csv_convert and changed how it works to use the full capability of
+    Particle_analysis and enable the conversion of all implemented Distribution Data
 """
 
 import csv
