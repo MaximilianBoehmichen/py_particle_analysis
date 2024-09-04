@@ -22,7 +22,7 @@ def def_used_smps(used_device):
     if used_device == device_list.query("Device=='SMPS 3938'")["Device_Identifier"].values[0]:
         # compare the used_device parameter taken from particle_analysis.get_data() to the values defined in
         # Def.device_list - done this way, so device_list can be changed easily without having to rewrite everything
-        nonconccolumns = ['Sample #', 'Date', 'Start Time', 'Sample Temp (C)', 'Sample Pressure (kPa)',
+        parameter_list = ['Sample #', 'Date', 'Start Time', 'Sample Temp (C)', 'Sample Pressure (kPa)',
                             'Relative Humidity (%)', 'Mean Free Path (m)', 'Gas Viscosity (Pa*s)',
                             'Diameter Midpoint (nm)', 'Scan Time (s)', 'Retrace Time (s)', 'Scan Resolution (Hz)',
                             'Scans Per Sample', 'Sheath Flow (L/min)', 'Aerosol Flow (L/min)', 'Bypass Flow (L/min)',
@@ -40,7 +40,7 @@ def def_used_smps(used_device):
         # data, but not in the list above, they should be addded to the list.
 
     elif used_device == device_list.query("Device=='SMPS 3071'")["Device_Identifier"].values[0]:
-        nonconccolumns = ['Sample #', 'Date', 'Start Time', 'Sample Temp (C)', 'Sample Pressure (kPa)',
+        parameter_list = ['Sample #', 'Date', 'Start Time', 'Sample Temp (C)', 'Sample Pressure (kPa)',
                             'Relative Humidity (%)', 'Mean Free Path (m)', 'Gas Viscosity (Pa*s)',
                             'Diameter Midpoint (nm)', 'Scan Time (s)', 'Retrace Time (s)', 'Down Scan First',
                             'Scans Per Sample', 'Impactor Type (cm)', 'Sheath Flow (L/min)', 'Aerosol Flow (L/min)',
@@ -52,11 +52,11 @@ def def_used_smps(used_device):
         time_format = '%m/%d/%y %H:%M:%S'
     else:
         print(f"Device {used_device} is not a viable option")
-        nonconccolumns = used_device
+        parameter_list = used_device
         header_pos = used_device
         time_format = used_device
 
-    return nonconccolumns, header_pos, time_format
+    return parameter_list, header_pos, time_format
 
 
 def rename_columns(df, used_device):
@@ -86,9 +86,9 @@ def import_data(filename, used_device):
     to work, the data has to be exported in rows"""
 
     # data file has variable number of data columns depending on measuring range set so conc data has to be constructed
-    # from difference of all columns and the non conc columns
+    # from difference of all columns and the non conc columns = paramter_list
 
-    nonconccolumns, header_pos, time_format = def_used_smps(used_device)
+    parameter_list, header_pos, time_format = def_used_smps(used_device)
 
     data = pd.read_table(filename, sep='\t', header=header_pos, engine='python', encoding='iso-8859-1')
     # originally ansi which is superset of iso; smps file is in encoding = ansi which caused an import error off cm^3
@@ -101,7 +101,7 @@ def import_data(filename, used_device):
 
     nr_scans = len(data)
 
-    for k in nonconccolumns:
+    for k in parameter_list:
         if k in data:
             pass
         else:
@@ -109,15 +109,15 @@ def import_data(filename, used_device):
             data[k] = np.nan  # with np.empty, it somehow filled the newly created column with some values from another
             # existing column??
 
-    add_info = data[(nonconccolumns[3:])]
+    add_info = data[(parameter_list[3:])]
 
     # converting Sample Pressure from kPa to mbar to match PALAS Info
     # add_info["Sample Pressure (mbar)"] = add_info["Sample Pressure (kPa)"].copy()*10
     # gives SettingWithCopyWarning -> resolve in future
 
-    Cn = data[data.columns.difference(nonconccolumns)].to_numpy()
+    Cn = data[data.columns.difference(parameter_list)].to_numpy()
 
-    x_axis = data[data.columns.difference(nonconccolumns)].columns.values
+    x_axis = data[data.columns.difference(parameter_list)].columns.values
     # extracts the midpoint diameter from the pd.dataframe header similar to how Cn was extracted
     x_axis = x_axis.astype(float)
 
