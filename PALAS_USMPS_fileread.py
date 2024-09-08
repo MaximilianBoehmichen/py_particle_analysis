@@ -22,6 +22,7 @@ from datetime import datetime
 import pandas as pd
 
 from Sup import get_filename
+from Sup import convert_mbar_to_kPa
 from Def import device_list
 
 
@@ -128,6 +129,10 @@ def import_data(filename):
     [scan_nr.append(k + 1) for k in range(len(Cn))]
 
     add_info = parametersDF[(parameter_list[2:])]
+
+    sample_p_kPa = convert_mbar_to_kPa(parametersDF["Sample Pressure / mbar"].astype(float).copy())
+    add_info.insert(loc=add_info.columns.get_loc("Sample Pressure / mbar") + 1, column="Sample Pressure / kPa",
+                    value=sample_p_kPa)
     add_info.insert(loc=0, column="Time", value=time)
     add_info.insert(loc=0, column="Scan Nr", value=scan_nr)
 
