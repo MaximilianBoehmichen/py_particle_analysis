@@ -127,7 +127,6 @@ def import_data(filename):
 def import_data_dict(used_device):
     filename = get_filename()
     Cn, el_time, add_info = import_data(filename)
-    # used_device = device_list.query("Import_Script=='PALAS_UFCPC_fileread'")["Device_Identifier"].values[0]
     data_dict = {"Cn": Cn, "el_time": el_time, "filename": filename, "used_device": used_device, "add_info":add_info}
     return data_dict
 
