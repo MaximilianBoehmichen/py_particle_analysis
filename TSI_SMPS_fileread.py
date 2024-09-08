@@ -132,9 +132,8 @@ def import_data(filename, used_device):
     add_info = data[(parameter_list[3:])]
 
     # converting Sample Pressure from kPa to mbar to match PALAS Info
-    # if used_device == device_list.query("Device=='SMPS 3938'")["Device_Identifier"].values[0]:
-    #    add_info.loc[:, "Sample Pressure / mbar"] = data["Sample Pressure / kPa"].copy()*10
-    # gives SettingWithCopyWarning, maybe will solve itsself with the next pd update anyways
+    if used_device == device_list.query("Device=='SMPS 3938'")["Device_Identifier"].values[0]:
+        sample_p_mbar = data["Sample Pressure / kPa"].copy()*10
 
 
     Cn = data[data.columns.difference(parameter_list)].to_numpy()
@@ -210,6 +209,8 @@ def import_data(filename, used_device):
     for i in range(nr_scans):
         time.append(datetime.strptime(data["Date"][i] + " " + data["Start Time"][i], time_format))
 
+    add_info.insert(loc=add_info.columns.get_loc("Sample Pressure / kPa") + 1, column="Sample Pressure / mbar",
+                    value=sample_p_mbar)
     add_info.insert(loc=0, column="Time", value=time)
     add_info.insert(loc=0, column="Scan Nr", value=data["Sample #"])
 
