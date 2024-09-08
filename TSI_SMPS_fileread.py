@@ -136,9 +136,9 @@ def import_data(filename, used_device):
     if used_device == device_list.query("Device=='SMPS 3938'")["Device_Identifier"].values[0]:
         sample_p_mbar = convert_kPa_to_mbar(data["Sample Pressure / kPa"].copy())
 
-    Cn = data[data.columns.difference(parameter_list)].to_numpy()
+    Cn = data[data.columns.difference(parameter_list, sort=False)].to_numpy()
 
-    x_axis = data[data.columns.difference(parameter_list)].columns.values
+    x_axis = data[data.columns.difference(parameter_list, sort=False)].columns.values
     # extracts the midpoint diameter from the pd.dataframe header similar to how Cn was extracted
     x_axis = x_axis.astype(float)
 
