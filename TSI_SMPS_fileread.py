@@ -136,19 +136,19 @@ def import_data(filename, used_device):
     if used_device == device_list.query("Device=='SMPS 3938'")["Device_Identifier"].values[0]:
         sample_p_mbar = convert_kPa_to_mbar(data["Sample Pressure / kPa"].copy())
 
-    Cn = data[data.columns.difference(parameter_list, sort=False)].to_numpy()
+    conc = data[data.columns.difference(parameter_list, sort=False)].to_numpy()
 
     x_axis = data[data.columns.difference(parameter_list, sort=False)].columns.values
-    # extracts the midpoint diameter from the pd.dataframe header similar to how Cn was extracted
+    # extracts the midpoint diameter from the pd.dataframe header similar to how conc was extracted
     x_axis = x_axis.astype(float)
 
     nr_bins = len(x_axis)
 
     # calculate upper bin boundary from midpoint diameters
 
-    X = np.zeros(Cn.shape)
-    Xl = np.zeros(Cn.shape)
-    Xu = np.zeros(Cn.shape)
+    X = np.zeros(conc.shape)
+    Xl = np.zeros(conc.shape)
+    Xu = np.zeros(conc.shape)
 
     # unfortunately, the methods for calculating the bin boundaries Xl and Xu based on the midpoint diameters contained
     # in the measurement file do not give a constant dlogX as I think TSI sets "nice" values for midpoint diameters with
@@ -202,7 +202,21 @@ def import_data(filename, used_device):
     # calculate dlogX from upper and lower boundary
     dlogX = np.log10(Xu/Xl)
 
-    Cn_dlogX = Cn/dlogX
+    conc_data = input("Which of the possible concentration data is contained in the txt-file? Type 0 for dCn/glogDp, "
+                      "1 for Cn")
+
+    if conc_data == "0":
+        Cn_dlogX = conc
+        Cn = Cn_dlogX*dlogX
+        print("Data imported from dCn/glogDp")
+    elif conc_data == "1":
+        Cn = conc
+        Cn_dlogX = Cn/dlogX
+        print("Data imported from dCn")
+    else:
+        print(f"{conc_data} is not a viable option, please enter again.")
+        conc_data = input("Which of the possible concentration data is contained in the txt-file? Type 0 for dCn/glogDp"
+                          ",1 for Cn")
 
     # calculating time list from dates and times given in measurement file
     time = []

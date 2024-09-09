@@ -81,6 +81,17 @@ def import_data(filename):
     conc_data = input("Which of the available concentration data do you want to import? Type 3 for raw, 4 for "
                            "inverted, 5 for inverted and diffusion corrected")
 
+    if conc_data == "3":
+        print("Raw data is imported")
+    elif conc_data == "4":
+        print("Inverted data is imported")
+    elif conc_data == "5":
+        print("Inverted diffusion corrected data is imported")
+    else:
+        print(f"{conc_data} is not a viable option, please enter again.")
+        input("Which of the available concentration data do you want to import? Type 3 for raw, 4 for "
+              "inverted, 5 for inverted and diffusion corrected")
+
     for i in range(nr_scans):  # filling the arrays with the values from the data list of lists
         for k in range(2, data_len[int(0 + i * 6)]):  # lower bin boundary values contained in each second line in the
             Xl[i, k-2] = data[int(0 + i * 6)][int(k)]  # file, or first line in data list of lists created before
