@@ -202,13 +202,13 @@ def import_data(filename, used_device):
     # calculate dlogX from upper and lower boundary
     dlogX = np.log10(Xu/Xl)
 
-    conc_data = input("Which of the possible concentration data is contained in the txt-file? Type 0 for dCn/glogDp, "
+    conc_data = input("Which of the possible concentration data is contained in the txt-file? Type 0 for dCn/dlogDp, "
                       "1 for Cn")
 
     if conc_data == "0":
         Cn_dlogX = conc
         Cn = Cn_dlogX*dlogX
-        print("Data imported from dCn/glogDp")
+        print("Data imported from dCn/dlogDp")
     elif conc_data == "1":
         Cn = conc
         Cn_dlogX = Cn/dlogX
