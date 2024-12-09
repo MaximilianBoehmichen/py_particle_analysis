@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """
+Particle_analysis.py
+
 Script for Particle Data Evaluation
 Data has to be imported by the import function suitable for the used Device
 
@@ -12,81 +14,27 @@ Modified 2024-03-20 to also run CPC_analysis.py which was renamed to Conc.py
 import Sup
 import Dist
 import Conc
+import Def
 import pandas as pd
 import numpy as np
 import math
+import dill
 from matplotlib import pyplot as plt
 from matplotlib import ticker
 from scipy import optimize
-import dill
+
 # import scipy.integrate as integrate
 # from matplotlib import cm as colormap
 
 
-def read_distribution(filename, used_device):
-    """function for importing distribution data, applying the correct import filter according to user choice and
-    importing data as X = np.array((nr_scans, nr_bins)), bar_width, Cn = X.shape, time = []"""
-    if used_device == 0:
-        import TSI_SMPS3071_fileread as fr  # ! utf-8 encoding for 3-superscript in the header second to last
-        # column P/cm^3 does not work sometimes, just change the ^3 to 3 in the data txt then
-    elif used_device == 1:
-        import TSI_SMPS3938_fileread as fr
-    elif used_device == 2:
-        import PALAS_SMPS2100_fileread as fr
-    elif used_device == 3:
-        import TSI_APS3321_fileread as fr
-    elif used_device == 4:
-        import PALAS_Welas_fileread as fr
-    elif used_device == 5:
-        import TSI_LAS3340A_fileread as fr
-
-    X, bar_width, Cn, time = fr.import_data(filename)
-    return X, bar_width, Cn, time
-
-
-def read_concentration(filename, used_device):
-    """function for importing concentration data, applying the correct import filter according to user choice and
-    importing data as Cn, el_time = np.array((nr_scans, nr_times)), start_time = []"""
-    if used_device == 6:
-        import TSI_CPC3775_fileread as fr
-    elif used_device == 7:
-        import PALAS_UFCPC_fileread as fr
-
-    Cn, el_time, start_time = fr.import_data(filename)
-    return Cn, el_time, start_time
-
-
 def get_data():
-    used_device = int(input("Which instrument did you use, type 0 for TSI SMPS 3081, 1 for TSI SMPS 3938, 2 for PALAS "
-                            "SMPS 2100, 3 for TSI APS 3321, 4 for PALAS Welas, 5 for TSI LAS 3340A, 6 for CPC 3775 and "
-                            "7 for PALAS UFCPC, enter as int."))
 
-    if used_device in [0, 1, 2, 3, 4]:  # Size Distribution Instruments
-        filename = Sup.get_filename()
-        X, bar_width, Cn, time = read_distribution(filename, used_device)
-        scan_nr = []
-        [scan_nr.append(k + 1) for k in range(len(X))]
-        data = {"X": X, "Cn": Cn, "bar_width": bar_width, "time": time, "scan_nr": scan_nr, "filename": filename,
-                "used_device": used_device}
+    print(Def.device_list[["Device_Identifier", "Device", "Manufacturer"]].to_string(justify="left", index=False))
+    used_device = int(input("Which instrument do you want to import data from? Enter as int."))
 
-    elif used_device == 5:
-        filenames = Sup.get_filenames()
-        X, bar_width, Cn, time = read_distribution(filenames, used_device)
-        # X, bar_width, Cn, time, n_scans = read_distribution(filenames, used_device)
-        scan_nr = []
-        n_scans = int(input("How many scans did you accquire per measurement? Give as int!"))
-        for k in range(len(filenames)):
-            [scan_nr.append(k + 1) for i in range(n_scans)]
-        data = {"X": X, "Cn": Cn, "bar_width": bar_width, "time": time, "scan_nr": scan_nr, "filename": filenames,
-                "used_device": used_device, "n_scans": n_scans}
-
-    elif used_device in [6, 7]:  # Particle Counters
-        filename = Sup.get_filename()
-        Cn, el_time, start_time = read_concentration(filename, used_device)
-        scan_nr = []
-        [scan_nr.append(k + 1) for k in range(len(Cn))]
-        data = {"Cn": Cn, "el_time": el_time,
-                "start_time": start_time, "scan_nr": scan_nr, "filename": filename, "used_device": used_device}
+    if used_device in Def.device_list["Device_Identifier"]:  # Size Distribution Instruments
+        fr = __import__(Def.device_list["Import_Script"][used_device])
+        data = fr.import_data_dict(used_device)
 
     else:
         print(f"Device {used_device} is not a viable option")
@@ -103,10 +51,16 @@ def save_calc_to_csv(data_dict, variable_list, fileaddition="particleDF"):
     # path = data_dict["filename"][:-4] + "_" + data_identifier + "_" + fileaddition + ".csv"
     dataframe = pd.DataFrame()
     for variable in variable_list:
-        dataframe[variable] = data_dict[variable]
+        if variable in data_dict:
+            dataframe[variable] = data_dict[variable]
+        elif variable in data_dict["add_info"]:
+            dataframe[variable] = data_dict["add_info"][variable]
+        else:
+            print(f"{variable} is neither in the top level of the data, nor in the add_info dataframe")
     print(f"wrote file with variables {variable_list} to csv with name {path}")
     dataframe.to_csv(path)
     return
+
 
 def save_session():
     filename = Sup.set_filename()
@@ -114,10 +68,12 @@ def save_session():
     dill.dump_session(path)
     return
 
+
 def load_session():
     path = Sup.get_filename()
     dill.load_session(path)
     return
+
 
 if __name__ == "__main__":
 
@@ -154,11 +110,12 @@ if __name__ == "__main__":
     
     ## For Distributionss
     
-    save_calc_to_csv(data_identifier, ["scan_nr", "time", "dg", "sigma", "calc_conc_n"], fileaddition="particleDF")
+    save_calc_to_csv(data_identifier, ["Scan Nr", "Time", "dg", "sigma", "calc_conc_n", "X10", "X16", "X50", "X84", 
+    "X90"], fileaddition="particleDF")
     
     ## For Concentrations
     
-    save_calc_to_csv(data_identifier, ["scan_nr", "start_time", "conc_n", "std_n"], fileaddition="particleDF")
+    save_calc_to_csv(data_identifier, ["Scan Nr", "Time", "mean_Cn", "std_Cn"], fileaddition="particleDF")
     
     # Distribution-specific Functions
     
@@ -184,8 +141,7 @@ if __name__ == "__main__":
     lowerbound = 100 #in the unit, the size data are saved by the instrument e.g. nm
     upperbound = 350
     cut_nrs = [1, 5, 7, 15]
-    cut_X, cut_Cn, cut_bar_width = Dist.cut_dist(sel_data["X"], sel_data["Cn"], sel_data["bar_width"], lowerbound,
-    upperbound, cut_nrs)
+    data_identifier = Dist.cut_dist(data_identifier, lowerbound, upperbound, scan_nrs, used_C="Cn")
     
     Allows to cut specific measurements to a more narrow size region, usually selected data should be used, but also 
     normal data can be used
@@ -202,17 +158,17 @@ if __name__ == "__main__":
     ## Calculation of Geometric Parameters
     
     data_identifier["dg", "sigma_g"] = Dist.calc_geometry(data_identifier["X"], data_identifier["Cn"],
-        data_identifier["calc_conc_n"], data_identifier["bar_width"])
+        data_identifier["calc_conc_n"], data_identifier["dX"])
     
     Calculation the geometrical mean and the geometrical standard deviation. Is called in "typical_calculations", so
     calling it on its own is not usually necessary. Also works for selected data. In mean data, the dg and sigma are
     calculated from the values given in the selected data set
     
-    ## Calculation of cummulative distribution
+    ## Calculation of cumulative distribution
     
-    data_identifier["cummC"] = Dist.cumulative_distribution(data_identifier["Cn"])
+    data_identifier["cumC"] = cumulative_distribution(data_identifier["Cn"])
     data_identifier["X10"], data_identifier["X16"], data_identifier["X50"], data_identifier["X84"], 
-        data_identifier["X90"] = Dist.cumulative_diameters(data_identifier["X"], data_identifier["cummC"]
+        data_identifier["X90"] = Dist.cumulative_diameters(data_identifier["X"], data_identifier["cumC"]
     
     calculated the cumulative distributions and the particle diameters below which 10, 16, 50, 84 and 90 % of all 
     particles are
@@ -233,7 +189,7 @@ if __name__ == "__main__":
     
     ### plot cumulative data
     
-    ax = Dist.plot_cummdata(data_identifier, data_identifier["used_device"], scan_nrs)
+    ax = Dist.plot_cummdata(data_identifier, used_device, scan nrs)
     
     # Concentration specific calls
     
@@ -244,7 +200,7 @@ if __name__ == "__main__":
     start and end are times in s of the measurements
     new column with ["cut_Cn"] is created
     
-    ## ploting of data
+    ## plotting of data
     
     ### plot normal data
     
@@ -275,10 +231,8 @@ if __name__ == "__main__":
     ## Save and load session
     ### Save
     
-    import dill
-    filename = "Z:/Projects/AeroCal/Measurements/whatever.dill"
-    dill.dump_session(filename)
+    save_session()
     
     ### Load
-    dill.load_session(filename)
+    load_session()
     """

@@ -1,4 +1,6 @@
 """
+ParticleElectricalMobility.py
+
 calculation of the particle size of a particle with different charge, but same mobility as another particle
 with that also calculation of Cunningham factor and electrical mobility of the initial particle
 
@@ -56,7 +58,7 @@ while abs(tol) > 10**(-12): # iterative calculation of dp and Cc of the
     tol = x-dp
     dp = x
     ct += 1
-    print(ct)
+    # print(ct)
     ct_list.append(ct)
     C_list.append(Cc)
     dp_list.append(dp)
