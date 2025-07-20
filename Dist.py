@@ -97,12 +97,11 @@ def cut_dist(data, lowerbound, upperbound, scan_nrs, used_C="Cn"):
     data[f"cut_conc_{used_C}"] = cut_conc
     return data
 
-
 def merge_data(sel_data_list):
     """merges dictionaries of data, should best be used with selected data dicts"""
     merged_data_X = []  # create lists to fill with list of 1D arrays
     merged_data_Cn = []
-    merged_data_dX = []
+    merged_data_dX =[]
     n_scans = 0  # count measurements that are imported to the lists
     x_len_list = []
     for i in sel_data_list:  # append all imported lines to the lists
@@ -149,6 +148,10 @@ def select_multiple_data(list_of_tuples):
     for tuple in list_of_tuples:
         sel_data_list.append(select_data(tuple[0], tuple[1]))
     sel_merged_data = merge_data(sel_data_list)
+    sel_merged_data["filename"] = input("Please enter a Path this data should be associated with. - "
+                                        "Used for naming figures")
+    print(Def.device_list[["Device_Identifier", "Device", "Manufacturer"]].to_string(justify="left", index=False))
+    sel_merged_data["used_device"] = int(input(f"Please enter the device identifier of the used device"))
     return sel_merged_data
 
 
@@ -194,13 +197,25 @@ def geometric_std(X, C, conc, dg):
             sigma_g.append(np.inf) # is infinity correct here? should it just be a massiv value? if after that a std is
             # calculated for example when using mean_of_n, the std of sigma is nan of course
         else:
-            sigma_g.append(math.exp(math.sqrt((np.nansum(np.square(np.log(X[k])
-                                                                   - np.log(dg[k]))*C[k]))/(conc[k]-1))))
+            # sigma_g.append(math.exp(math.sqrt((np.nansum(np.square(np.log(X[k])
+            #                                                       - np.log(dg[k]))*C[k]))/(conc[k]-1))))
             # 22-13 in aerosol measurement, Kulkarni et.al.  # 20230705 changed /conc to /np.nansum(C[k]-1)
-        #sigma_g.append(math.pow(10, (math.sqrt((np.nansum(np.square(np.log10(mean_X[k]) - np.log10(dg[k])) *
-        #                                                  mean_Cn[k])) / (mean_conc_n[k] - 1)))))
+            sigma_g.append(math.pow(10, (math.sqrt((np.nansum(np.square(np.log10(X[k])-np.log10(dg[k]))*
+                                                              C[k]))/(conc[k]-1)))))
+            # changed to log10 as it is used everywhere else on 20250128
         # same result as above
     return sigma_g
+
+
+def mode_diameter(dg, sigma_g):
+    """calculates the mode diameter from dg and sigma_g via equation given in Aerosol Measurement p.43"""
+    mode = []
+    for k in range(len(dg)):
+        if dg[k] == 0:
+            mode.append(0)
+        else:
+            mode.append(dg[k]*math.pow(10,(-np.log10(sigma_g[k])**2)))
+    return mode
 
 
 def lognormal_dist(conc, sigma_g, dg, X, dX):
@@ -226,21 +241,23 @@ def lognormal_dist(conc, sigma_g, dg, X, dX):
 
 def lognormal_function(x, A, m, sigma):
     """definition of a log-normal function with A being a scale factor, m being the median and sigma being the geometric
-    standard deviation"""
-    return A*(np.exp(-((np.log(x/m))**2)/(2*np.log(sigma)**2))/(np.log(sigma)*x*np.sqrt(2*math.pi)))
+    standard deviation - from Aerosol-Measurement p. 486 with added A parameter similar to p. 42"""
+    # return A / (x * np.log(sigma) * np.sqrt(2 * math.pi)) * np.exp(-((np.log(x / m)) ** 2) / (2 * np.log(sigma) ** 2))
+    return A*(1/(x*np.log(sigma)*np.sqrt(2*math.pi))*np.exp(-((np.log(x/m))**2)/(2*np.log(sigma)**2))
+              /np.nansum(1/(x*np.log(sigma)*np.sqrt(2*math.pi))*np.exp(-((np.log(x/m))**2)/(2*np.log(sigma)**2))))
 
 
 def normal_function(x, A, mu, sigma):
     """definition of a normal function with A being a scale factor, mu being the median and sigma being the geometric
     standard deviation"""
-    return A*np.exp(-((x-mu)**2)/(2*sigma**2))/(sigma*np.sqrt(2*math.pi))
+    return A/(sigma*np.sqrt(2*math.pi))*np.exp(-((x-mu)**2)/(2*sigma**2))
 
 
 def lognormal_fit(X, C):
     """fit of a lognormal peak - works only for one measurement at a time"""
     ## work this through
     p0=[1000, 100, 1.2]
-    lowerbounds=[0, 10, 0.2]
+    lowerbounds=[0, 10, 1]
     upperbounds=[np.inf, 1000, 5]
     popt_lognorm_fit, pcov_lognorm_fit = optimize.curve_fit(lognormal_function, X, C, p0=p0,
                                                             bounds=(lowerbounds, upperbounds), maxfev=1000)
@@ -499,7 +516,7 @@ def mean_and_std(data):
 
 def format_plot(fig, ax, used_C, used_device):
     cm = 1 / 2.54  # inches to cm
-    fig.set_size_inches(18.5 * cm, 10 * cm)
+    fig.set_size_inches(18.5 * cm, 15 * cm)
     ax.xaxis.set_major_formatter(ticker.ScalarFormatter())
     y_label = Sup.decide_y_label(used_C)
     if used_device in list(Def.device_list.query("Size_Plot_Range==u'\xb5m'")["Device_Identifier"].values):
@@ -509,7 +526,7 @@ def format_plot(fig, ax, used_C, used_device):
                ylabel=y_label)
     elif used_device in list(Def.device_list.query("Size_Plot_Range==u'\xb5m in nm'")["Device_Identifier"].values):
         # for micrometer instruments with nm x-axis
-        ax.set(xscale='log', xticks=[100, 300, 800, 2000, 8000], xticklabels=[100, 300, 800, 2000, 8000],
+        ax.set(xscale='log', xticks=[400, 1000, 2000, 5000], xticklabels=[0.4, 1, 2, 5],
                xlabel='Particle Diameter / $\mu$m',
                ylabel=y_label)
     elif used_device in list(Def.device_list.query("Size_Plot_Range=='nm'")["Device_Identifier"].values):
@@ -583,12 +600,13 @@ def plot_meandata(mean_data, scan_nrs, colors=Def.tum_cm, a=1):
     fig, ax = plt.subplots()  # height with title 12, without 10
     legend_entries = []
     for k in plot_nrs:
-        ax.bar(mean_X[k, :], mean_C[k, :], width=mean_dX[k, :], yerr=std_C[k, :], edgecolor='black')
+        ax.bar(mean_X[k, :], mean_C[k, :], width=mean_dX[k, :], edgecolor='black') #yerr=std_C[k, :]
         user_input = input(f"Please enter the legend entry for scan {k+1}")
-        legend_entries.append(user_input + " (" + str("{:.2f}".format(float(mean_dg[k]))) + u"\u00B1" +
-           str("{:.2f}".format(float(std_dg[k]))) + " nm)")
+        legend_entries.append(user_input)
+        # legend_entries.append(user_input + " (" + str("{:.2f}".format(float(mean_dg[k]))) + u"\u00B1" +
+        #    str("{:.2f}".format(float(std_dg[k]))) + " nm)")
         # legend_entries.append(user_input) # scan_nrs is used here on purpose
-    [print(f"measurement {scan_nrs[k]} conc. = " + "{:e}".format(float(mean_conc_n[k])) + u"\u00B1" +
+    [print(f"measurement {k+1} conc. = " + "{:e}".format(float(mean_conc_n[k])) + u"\u00B1" +
            "{:e}".format(float(std_conc_n[k])) + " P/cm" + u"\u00B3") for k in plot_nrs]
 
     format_plot(fig, ax, used_C, used_device)

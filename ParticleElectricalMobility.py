@@ -14,7 +14,7 @@ from matplotlib import pyplot as plt
 
 # values for mean free path and viscosity taken from jennings 1988
 
-dp = 55*10**(-9) # initial particle size in m
+dp = 200*10**(-9) # initial particle size in m
 # l = 66*10**(-9) # mean free path in m, nicos value
 l = 65.43*10**(-9)
 # eta = 1.81*10**(-5) # dynamic viscosity of air in kg/ms, nico
@@ -36,13 +36,16 @@ Z = (n1*el*Ccini)/(3*math.pi*eta*dp) # electrical mobility of particle wit dp an
 
 # for DMA calculation:
 Vsheath = 20 # in L/min
-Vexhaust = 20 # in L/min
-Router = 1.961 # in cm # TSI 3081A: 1.961 # PALAS DEMC 2000:
-Rinner = 0.937 # in cm # TSI 3081A: 0.937 # PALAS DEMC 2000:
-Length = 0.44369 # in m # TSI 3081A: 0.44369 # PALAS DEMC 2000:
+Vexhaust = 22 # in L/min
+Router = 1.961 # in cm # TSI 3081A: 1.961 # PALAS DEMC 2000: 3.35
+Rinner = 0.937 # in cm # TSI 3081A: 0.937 # PALAS DEMC 2000: 2.5
+Length = 0.44369 # in m # TSI 3081A: 0.44369 # PALAS DEMC 2000: 0.277
 # Voltage = 5000 # in V
 # Z = (((Vsheath+Vexhaust)/2)/60000)*(math.log(Router/Rinner)/(2*math.pi*Voltage*Length))
-Voltage = (((Vsheath+Vexhaust)/2)/60000)*(math.log(Router/Rinner)/(2*math.pi*Z*Length)) # wo kommt die Formel her?
+Voltage = (((Vsheath+Vexhaust)/2)/60000)*(math.log(Router/Rinner)/(2*math.pi*Z*Length)) # Mäkelä Vorlesung Summer School
+
+print(f'initial dp = {dp}')
+print(f'initial charge = {n1}')
 
 ct_list = []
 C_list = []
@@ -51,12 +54,14 @@ dp_list = []
 tol = 1
 ct = 0
 
-while abs(tol) > 10**(-12): # iterative calculation of dp and Cc of the
+
+while abs(tol) > 10**(-12): # iterative calculation of dp and Cc of the particle with other charge
     Cc = 1+(2*l/dp)*(a+b*math.exp(c*(dp/(2*l))))
     #Cc = 1 + (l / dp) * (a + b * math.exp(c * (dp / l))) # nico
-    x = (n2*el*Cc)/(3*math.pi*eta*Z)
+    Z2 = (n2 * el * Cc) / (3 * math.pi * eta * dp)
+    x = (1*el*Cc)/(3*math.pi*eta*Z2) # calculate size as it would have with one charge
     tol = x-dp
-    dp = x
+    dp = x # set new size as dp
     ct += 1
     # print(ct)
     ct_list.append(ct)
@@ -65,7 +70,8 @@ while abs(tol) > 10**(-12): # iterative calculation of dp and Cc of the
 
 print(f'Ccini = {Ccini}')
 print(f'Z = {Z}')
-print(f'dp = {dp}')
+print(f'measured dp = {dp}')
+print(f'with charge = {n2}')
 print(f'Cc = {Cc}')
 print(f'Voltage = {Voltage}')
 fig, axs = plt.subplots(2)
