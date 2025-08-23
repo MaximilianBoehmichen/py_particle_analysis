@@ -1,3 +1,39 @@
+### Calls kernel_density: # KM moved here from a separate md file
+
+# create sample data
+# für beispieldata vom
+
+#--------------------------------
+
+# create list of repeating values
+importindata(data, 45);
+
+x = np.linspace(min(data["Array"]), max(data["Array"]), data["Array"].shape[0])
+sample = data["Array"][:, np.newaxis].astype(int)
+# plot histogramm
+
+plot_loghist(data, 500)
+#---------------------------------
+
+for bandwidth in np.linspace(0.2, 3, 3):
+    kde = getKernelDensityEstimation(data, x, bandwidth=bandwidth)
+    plt.plot(x, kde, alpha = 0.8, label = f'bandwidth = {round(bandwidth, 2)}')
+
+#---------------------------------
+
+cv_bandwidth = bestBandwidth(data["Array"])
+
+from statsmodels.nonparametric.kernel_density import KDEMultivariate
+from statsmodels.nonparametric.kernel_density import EstimatorSettings
+settings = EstimatorSettings(efficient=True)
+stats_models_cv = KDEMultivariate(data["Array"], 'c', bw = 'cv_ml', defaults = settings).pdf(x)
+
+#-----------------------------------
+
+CV_best_plot(data["Array"])
+
+#-----------------------------------
+
  #plot distribution legend with dg:
  #add dg in list of variables in the funktion Dist.plot_singledata
 
