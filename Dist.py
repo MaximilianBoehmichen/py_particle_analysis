@@ -525,7 +525,7 @@ def mean_and_std(data):
 
 def format_plot(fig, ax, used_C, used_device):
     cm = 1 / 2.54  # inches to cm
-    fig.set_size_inches(18.5 * cm, 15 * cm)
+    fig.set_size_inches(16 * cm, 10 * cm)
     ax.xaxis.set_major_formatter(ticker.ScalarFormatter())
     y_label = Sup.decide_y_label(used_C)
     if used_device in list(Def.device_list.query("Size_Plot_Range==u'\xb5m'")["Device_Identifier"].values):
@@ -584,7 +584,7 @@ def plot_singledata(data, scan_nrs, used_C="Cn", colors=Def.fhg_cm, a=1):
     #data_identifier = Sup.get_variable_name(data)
     path = data["filename"][:-4] + "_" + fileaddition + ".png"
     # path = data["filename"][:-4] + "_" + data_identifier + "_" + fileaddition + ".png"
-    plt.savefig(path, transparent=True)
+    plt.savefig(path, dpi=600, transparent=True)
     print(f"file saved to {path}")
 
     plt.show()
