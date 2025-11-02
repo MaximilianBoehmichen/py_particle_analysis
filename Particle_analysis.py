@@ -87,7 +87,7 @@ def load_session():
 
 if __name__ == "__main__":
 
-    data = get_data()
+    # data = get_data()
 
     # plt.ioff()
 
