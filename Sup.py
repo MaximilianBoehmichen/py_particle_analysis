@@ -189,9 +189,8 @@ def build_legend(legend_entries, scan_nrs, ct, legend="automatic"):
     return
 
 
-def save_plot(data, save_plot="off"):
+def save_plot(data, save_plot="off", fileaddition=""):
     if save_plot=="on":
-        fileaddition = input("Please enter a fileaddition")
         #data_identifier = Sup.get_variable_name(data)
         path = data["filename"][:-4] + "_" + fileaddition + ".png"
         # path = data["filename"][:-4] + "_" + data_identifier + "_" + fileaddition + ".png"

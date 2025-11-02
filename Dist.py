@@ -587,7 +587,8 @@ def plot_singledata(data, scan_nrs, used_C="Cn", colors=Def.fhg_cm, a=1, legend=
     #plt.rcParams['savefig.dpi'] = 600
     plt.legend(legend_entries)  # , loc='upper left')
     # move this into format_plot ?
-    Sup.save_plot(save_plot)
+    # scan_nr_fileaddition = f"scan_nr_{['{k}_' for k in scan_nrs]}"
+    Sup.save_plot(data, save_plot) #, fileaddition=scan_nr_fileaddition)
 
     plt.show()
     return ax
