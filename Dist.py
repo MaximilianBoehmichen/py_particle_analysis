@@ -77,33 +77,40 @@ def get_conc(C):
     return calc_conc
 
 
-def cut_dist_data(X, C, dX, lowerbound, upperbound, scan_nrs):  # merge with select_data
-    """to cut a part of the spectrum"""
-    cut_nrs = Sup.py_logic_converter(scan_nrs)
-    strt_idx = np.where(X[0] > lowerbound)[0][0]
-    end_idx = np.where(X[0] < upperbound)[-1][-1] + 1
-    cut_X = np.zeros((len(cut_nrs), len(X[0, strt_idx:end_idx])))
-    cut_C = np.zeros((len(cut_nrs), len(C[0, strt_idx:end_idx])))
-    cut_dX = np.zeros((len(cut_nrs), len(dX[0, strt_idx:end_idx])))
-    cut_conc = []
-    ct = 0
-    for k in cut_nrs:
-        cut_X[ct, :] = X[k, strt_idx:end_idx]
-        cut_C[ct, :] = C[k, strt_idx:end_idx]
-        cut_dX[ct, :] = dX[k, strt_idx:end_idx]
-        cut_conc.append(np.nansum(cut_C[ct, :]))
-        ct += 1
+def cut_dist_data(X, C, dX, lowerbound, upperbound):  # merge with select_data
+    """to cut a part of the spectrum - this formerly created an array smaller than the original array
+    -> changed to now produce an array of same size for easier handliing afterwards be just changing all values outside
+    of cut area to np.nan"""
+    strt_idx = np.where(X > lowerbound)[0][0]
+    end_idx = np.where(X < upperbound)[-1][-1] + 1
+    cut_X = np.full_like(X, np.nan)
+    cut_C = np.full_like(C, np.nan)
+    cut_dX = np.full_like(dX, np.nan)
+    cut_X[strt_idx:end_idx] = X[strt_idx:end_idx]
+    cut_C[strt_idx:end_idx] = C[strt_idx:end_idx]
+    cut_dX[strt_idx:end_idx] = dX[strt_idx:end_idx]
+    cut_conc = np.nansum(cut_C)
     return cut_X, cut_C, cut_dX, cut_conc
 
 
 def cut_dist(data, lowerbound, upperbound, scan_nrs, used_C="Cn"):
     X, dX, C = Sup.extract_from_dict(data, used_C)
-    cut_X, cut_C, cut_dX, cut_conc = cut_dist_data(X, C, dX, lowerbound, upperbound, scan_nrs)
-    data["cut_X"] = cut_X
-    data[f"cut_{used_C}"] = cut_C
-    data["cut_dX"] = cut_dX
-    data["results"][f"cut_conc_{used_C}"] = cut_conc
+    cut_nrs = Sup.py_logic_converter(scan_nrs)
+    if "cut_X" in data:
+        pass
+    else:
+        data["cut_X"] = np.full_like(data["X"], np.nan)
+        data[f"cut_{used_C}"] = np.full_like(data[used_C], np.nan)
+        data["cut_dX"] = np.full_like(data["X"], np.nan)
+        data["results"][f"cut_conc_{used_C}"] = np.full_like(data["results"]["calc_conc_n"], np.nan)
+    for k in cut_nrs:
+        cut_X, cut_C, cut_dX, cut_conc = cut_dist_data(X[k], C[k], dX[k], lowerbound, upperbound)
+        data["cut_X"][k] = cut_X
+        data[f"cut_{used_C}"][k] = cut_C
+        data["cut_dX"][k] = cut_dX
+        data["results"].loc[k, f"cut_conc_{used_C}"] = cut_conc # dropped a SettingWithCopyWarning so using .loc now
     return data
+
 
 def merge_data(sel_data_list):
     """merges dictionaries of data, should best be used with selected data dicts"""
@@ -242,15 +249,15 @@ def calc_geometry(X, C, conc):
 
 def cumulative_distribution(C):
     """calculates the cumulative distribution"""  # tested, first column = Cn[0], last column = calc_conc_n
-    cumC = np.zeros_like(C)
+    cum_C = np.zeros_like(C)
     for scan in range(len(C)):
-        cumC[scan, 0] = C[scan, 0]
+        cum_C[scan, 0] = C[scan, 0]
         for k in range(1, len(C[scan])):
-            cumC[scan, k] = cumC[scan, k-1] + C[scan, k]
-    return cumC
+            cum_C[scan, k] = cum_C[scan, k-1] + C[scan, k]
+    return cum_C
 
 
-def cumulative_diameters(X, cumC):
+def cumulative_diameters(X, cum_C):
     """calculates the diameters below which 10, 16, 50, 84 and 90 % of all particles are"""
     # seemingly works, at least X50 were similar to PDAnalyze X50 values, but slightly different, as i just give the
     # middle X value of the bin, maybe PALAS does some other magic with it like calculating a discrete distribution
@@ -259,12 +266,12 @@ def cumulative_diameters(X, cumC):
     X50 = []
     X84 = []
     X90 = []
-    for k in range(len(cumC)):
-        X10.append(X[k][next((index for index, val in enumerate(cumC[k]) if val > cumC[k][-1]*0.1), 0)])
-        X16.append(X[k][next((index for index, val in enumerate(cumC[k]) if val > cumC[k][-1]*0.16), 0)])
-        X50.append(X[k][next((index for index, val in enumerate(cumC[k]) if val > cumC[k][-1]*0.5), 0)])
-        X84.append(X[k][next((index for index, val in enumerate(cumC[k]) if val > cumC[k][-1]*0.84), 0)])
-        X90.append(X[k][next((index for index, val in enumerate(cumC[k]) if val > cumC[k][-1]*0.9), 0)])
+    for k in range(len(cum_C)):
+        X10.append(X[k][next((index for index, val in enumerate(cum_C[k]) if val > cum_C[k][-1]*0.1), 0)])
+        X16.append(X[k][next((index for index, val in enumerate(cum_C[k]) if val > cum_C[k][-1]*0.16), 0)])
+        X50.append(X[k][next((index for index, val in enumerate(cum_C[k]) if val > cum_C[k][-1]*0.5), 0)])
+        X84.append(X[k][next((index for index, val in enumerate(cum_C[k]) if val > cum_C[k][-1]*0.84), 0)])
+        X90.append(X[k][next((index for index, val in enumerate(cum_C[k]) if val > cum_C[k][-1]*0.9), 0)])
     # cumDiameters = pd.DataFrame({"X10": X10, "X16": X16, "X50": X50, "X84": X84, "X90": X90})
     return X10, X16, X50, X84, X90  # cumDiameters
 
@@ -274,9 +281,10 @@ def typical_calculations(data):
     data["results"]["dg"], data["results"]["sigma_g"] = calc_geometry(data["X"], data["Cn"], data["results"]["calc_conc_n"])
     data["results"]["mode"], data["results"]["SMD"], data["results"]["VMD"] = (
         mode_surface_volume_diameter(data["results"]["dg"], data["results"]["sigma_g"]))
-    data["cumC"] = cumulative_distribution(data["Cn"])
+    data["cum_C"] = cumulative_distribution(data["Cn"])
+    data["norm_cum_C"] = Sup.norm_C(data["cum_C"], data["results"]["calc_conc_n"])
     (data["results"]["X10"], data["results"]["X16"], data["results"]["X50"], data["results"]["X84"],
-     data["results"]["X90"]) = cumulative_diameters(data["X"], data["cumC"])
+     data["results"]["X90"]) = cumulative_diameters(data["X"], data["cum_C"])
     return data
 
 
@@ -568,7 +576,7 @@ def format_plot(fig, ax, used_C, used_device):
     return ax
 
 
-def plot_singledata(data, scan_nrs, used_C="Cn", colors=Def.fhg_cm, a=1, legend="automatic", save_plot="off"):
+def plot_singledata(data, scan_nrs, used_C="Cn", colors=Def.tum_cm, a=1, legend="automatic", save_plot="off"):
     """plots the given data, specify used_C to use "Cn", or "Cn_dlogX" measurement to use"""
     X, dX, C = Sup.extract_from_dict(data, used_C)
     calc_conc = get_conc(data[used_C])
@@ -637,25 +645,20 @@ def plot_meandata(mean_data, scan_nrs, colors=Def.fhg_cm, a=1):
     return ax
 
 
-def plot_cummdata(data, used_device, scan_nrs):
+def plot_cum_data(data, used_device, scan_nrs):
     """plots the given data, specify measurement to use from sel_Cn array"""
     # seems to work, just needs another axis label to indicate it is cummulative :D
-    used_C = "cummCn"
+    used_C = "cum_C"
     X = data["X"]
     dX = data["dX"]
-    cummCn = data["cummCn"]
+    cum_C = data["cum_C"]
     calc_conc_n = data["calc_conc_n"]
-    normcummCn = np.zeros_like(cummCn)
-    for k in range(len(cummCn)):
-        if calc_conc_n[k] > 0:
-            normcummCn[k] = cummCn[k]/calc_conc_n[k]
-        else:
-            normcummCn[k] = cummCn[k]
+    normcum_C = Sup.norm_C(cum_C, calc_conc_n)
     plot_nrs = Sup.py_logic_converter(scan_nrs)
     fig, ax = plt.subplots()  # height with title 12, without 10
     if len(plot_nrs) == 1:
         k = plot_nrs[0]
-        ax.bar(X[k, :], normcummCn[k, :], width=dX[k, :], edgecolor='black')
+        ax.bar(X[k, :], normcum_C[k, :], width=dX[k, :], edgecolor='black')
         legend_entries = [input(f"Please enter the legend entry for scan {scan_nrs[0]}")]
         # scan_nrs is used here on purpose
         print(f"scan {scan_nrs[0]} conc. = " + "{:e}".format(float(calc_conc_n[k])) + " P/cm" + u"\u00B3")
@@ -663,7 +666,7 @@ def plot_cummdata(data, used_device, scan_nrs):
         legend_entries = []
         ct = 0
         for k in plot_nrs:
-            ax.bar(X[k, :], normcummCn[k, :], width=dX[k, :], edgecolor='black', alpha=0.5)
+            ax.bar(X[k, :], normcum_C[k, :], width=dX[k, :], edgecolor='black', alpha=0.5)
             legend_entries.append(input(f"Please enter the legend entry for scan {scan_nrs[ct]}"))
             print(f"scan {scan_nrs[k]} conc. = " + "{:e}".format(float(calc_conc_n[k])) + " P/cm" + u"\u00B3")
             ct += 1

@@ -147,13 +147,13 @@ def decide_C_unit(used_C):
 
 def decide_y_label(used_C):
     C_unit = Sup.decide_C_unit(used_C)
-    if used_C == "Cn_dlogX" or used_C == "cut_Cn_dlogX":
+    if "dlogX" in used_C:
         y_label = 'dN/dlogD$_{p}$/ ' + C_unit
-    elif used_C == "cumm_C":
+    elif "cum" in used_C:
         y_label = 'Fraction of Total Particle Concentration %'
-    elif used_C == "Cv":
+    elif "Cv" in used_C:
         y_label = 'Volume Concentration / ' + C_unit
-    elif used_C == "Cm":
+    elif "Cm" in used_C:
         y_label = 'Mass Concentration / ' + C_unit
     else:
         y_label = 'Number Concentration / ' + C_unit
@@ -168,16 +168,20 @@ def decide_filename_function(used_device):
     return filename
 
 
-
 def pack_to_dict_df(data, variables):
     """function to pack variables into a dict and the contained dataframe - maybe use if X and so on are packed to df"""
     data
 
 
 def extract_from_dict(data, used_C="Cn"):
-    X = data["X"]
-    dX = data["dX"]
-    C = data[used_C]
+    if "cut" in used_C:
+        X = data["cut_X"]
+        dX = data["cut_dX"]
+        C = data[used_C]
+    else:
+        X = data["X"]
+        dX = data["dX"]
+        C = data[used_C]
     return X, dX, C
 
 
@@ -199,3 +203,12 @@ def save_plot(data, save_plot="off", fileaddition=""):
     else:
         pass
     return
+
+def norm_C(C, calc_conc):
+    norm_C = np.zeros_like(C)
+    for k in range(len(C)):
+        if calc_conc[k] > 0:
+            norm_C[k] = C[k]/calc_conc[k]
+        else:
+            norm_C[k] = C[k]
+    return norm_C
