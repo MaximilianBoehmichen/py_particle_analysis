@@ -335,40 +335,24 @@ def normal_function(x, A, mu, sigma):
 def monomodal_fit(X, C, fit_function=Dist.normalized_lognormal_function):
     """fit of a monomodal distribution - works only for one measurement at a time"""
     ## work this through
-    p0=[1000, np.median(X), 1.2] # guesses a monodisperse peak in the middle of the X-axis and with 10^4 /cm^3
-    lowerbounds=[0, min(X), 1]  # lower bound is 0 conc, lower boundary of X-axis and completely monodisperse
-    upperbounds=[np.inf, max(X), 5]  # upper bound is infinite conc., upper bound of X-axis and polydisperse
-    popt_fit, pcov_fit = optimize.curve_fit(fit_function, X, C, p0=p0,
+    XnoNaNs = X[~np.isnan(X)]  # ~ = logical-not operator
+    CnoNaNs = C[~np.isnan(C)]
+    p0=[1000, np.median(XnoNaNs), 1.2] # guesses a monodisperse peak in the middle of the X-axis and with 10^4 /cm^3
+    lowerbounds=[0, min(XnoNaNs), 1]  # lower bound is 0 conc, lower boundary of X-axis and completely monodisperse
+    upperbounds=[np.inf, max(XnoNaNs), 5]  # upper bound is infinite conc., upper bound of X-axis and polydisperse
+    popt_fit, pcov_fit = optimize.curve_fit(fit_function, XnoNaNs, CnoNaNs, p0=p0,
                                                             bounds=(lowerbounds, upperbounds), maxfev=1000)
     A_fit=popt_fit[0]
     mu_fit=popt_fit[1]
     sigma_fit=popt_fit[2]
-    C_fit=fit_function(X, *popt_fit)
+    C_fit=fit_function(XnoNaNs, *popt_fit)
     return A_fit, mu_fit, sigma_fit, C_fit
-
-
-def create_bounds(modality, XnoNaNs, CnoNaNs):
-    lowerbounds = []
-    upperbounds = []
-    bounds=(lowerbounds,upperbounds)
-    for i in range(modality):
-        lowerbounds.append(0)  # A_min
-        lowerbounds.append(min(XnoNaNs)) # mu_min
-        lowerbounds.append(1)  # sigma_min
-    for k in range(modality):
-        upperbounds.append(np.nansum(CnoNaNs)) # A_max
-        upperbounds.append(max(XnoNaNs)) # mu_max
-        upperbounds.append(np.inf) # sigma_max
-    print(f'lower bounds {lowerbounds}')
-    print(f'upper bounds {upperbounds}')
-    bounds = (lowerbounds, upperbounds)
-    return bounds
 
 
 def generate_initial_guesses_from_data(
         X,
         C,
-        height=10, # -> minimum height in scipy.signal.find_peaks
+        height=1, # -> minimum height in scipy.signal.find_peaks
         width=1, # -> minimum width in scipy.signal.find_peaks
         # threshold = could be added here which describes the difference in height between neighboring peaks
         distance=5): # horizontal distance between neighboring peaks
@@ -404,6 +388,22 @@ def generate_initial_guesses_from_data(
     return initial_guess, modality
 
 
+def create_bounds(initial_guess, modality, allowed_deviation=0.1):
+    lowerbounds = []
+    upperbounds = []
+    for i in range(modality):
+        lowerbounds.append(0)  # A_min
+        lowerbounds.append(initial_guess[3*i+1]*(1-allowed_deviation)) # mu_min
+        lowerbounds.append(1)  # sigma_min
+        upperbounds.append(np.inf) # A_max
+        upperbounds.append(initial_guess[3*i+1]*(1+allowed_deviation)) # mu_max
+        upperbounds.append(np.inf) # sigma_max
+    print(f'lower bounds {lowerbounds}')
+    print(f'upper bounds {upperbounds}')
+    bounds = (lowerbounds, upperbounds)
+    return bounds
+
+
 def create_n_modal_fit_function(modality, fit_function):
     """produce n-modal function as linear combination of multiple fit functions as defined above with n
     being the number of contained single functions"""
@@ -426,16 +426,17 @@ def multimodal_fit(X, C, fit_function="normalized_lognormal_function"):
     NaNs first when using cut arrays"""
     XnoNaNs = X[~np.isnan(X)]  # ~ = logical-not operator
     CnoNaNs = C[~np.isnan(C)]
-    initial_guess, modality = generate_initial_guesses_from_data(X, C, height=10, width=1, distance=5)
-    b = create_bounds(modality, XnoNaNs, CnoNaNs)
+    initial_guess, modality = generate_initial_guesses_from_data(XnoNaNs, CnoNaNs, height=10, width=1, distance=5)
+    b = create_bounds(initial_guess, modality, allowed_deviation=0.01)
     function_type = create_n_modal_fit_function(modality, fit_function)
     params, covs = optimize.curve_fit(function_type, XnoNaNs, CnoNaNs,
                             p0=initial_guess,
                             bounds=(b),
-                            method="trf")  # trf -> bounds are provided
+                            method="trf",  # trf -> bounds are provided
+                            ftol=10**(-11))  # xtol, gtol also available in least_squares, default is 1**(-8)
     var = np.diag(covs) # variance is in diag of covs, sigma is sqrt of var
-    C_fit = function_type(X, *params)
-    plt.plot(X, C_fit,
+    C_fit = function_type(XnoNaNs, *params)
+    plt.plot(XnoNaNs, C_fit,
              color='red', lw=3, label='multimodal fit')
     for k in range(0,modality):
         plt.plot(X, lognormal_function(X, *params[k*3:(k+1)*3]),
