@@ -160,6 +160,18 @@ def decide_y_label(used_C):
     return y_label
 
 
+def decide_x_scale(used_device):
+    if used_device in list(Def.device_list.query("Size_Plot_Range==u'\xb5m'")["Device_Identifier"].values):
+        x_scale = u'\xb5m'
+    elif used_device in list(Def.device_list.query("Size_Plot_Range==u'\xb5m in nm'")["Device_Identifier"].values):
+        x_scale = 'nm'
+    elif used_device in list(Def.device_list.query("Size_Plot_Range=='nm'")["Device_Identifier"].values):
+        x_scale = 'nm'
+    else:
+        x_scale = input("Please enter the given x-scale as string.")
+    return x_scale
+
+
 def decide_filename_function(used_device):
     if used_device == 5:
         filename = Sup.get_filenames()

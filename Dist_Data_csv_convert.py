@@ -17,13 +17,16 @@ import csv
 import os
 import pandas as pd
 import Particle_analysis
+import Sup
 
 data = Particle_analysis.get_data()
 
-X, dX, dlogX, Cn, add_info, filename = data["X"], data["dX"], data["dlogX"], data["Cn"], data["add_info"], \
-    data["filename"]
+X, dX, dlogX, Cn, add_info, filename, used_device = data["X"], data["dX"], data["dlogX"], data["Cn"], data["add_info"],\
+    data["filename"], data["used_device"]
 
-with open(f'{os.path.splitext(filename)[0]}.csv', 'w', encoding='UTF8', newline="") as f:
+x_scale = Sup.decide_x_scale(used_device)
+
+with open(f'{os.path.splitext(filename)[0]}.csv', 'w', encoding='iso-8859-1', newline="") as f:
     writer = csv.writer(f)
 
     if ["Comment"] in add_info.columns.values:
@@ -33,16 +36,16 @@ with open(f'{os.path.splitext(filename)[0]}.csv', 'w', encoding='UTF8', newline=
 
     for msmt in range((len(Cn))):
         scan_nr = msmt+1
-        x_row = ["Scan Nr", "X", "nm"]
+        x_row = ["Scan Nr", "X", x_scale]
         [x_row.append(i) for i in X[msmt]]
         writer.writerow(x_row)
-        dx_row= [scan_nr, "dX", "nm"]
+        dx_row= [scan_nr, "dX", x_scale]
         [dx_row.append(i) for i in dX[msmt]]
         writer.writerow(dx_row)
-        dlogx_row = [comment, "dlogX", "nm"]
+        dlogx_row = [comment, "dlogX", x_scale]
         [dlogx_row.append(i) for i in dlogX[msmt]]
         writer.writerow(dlogx_row)
-        Cn_row = [f"{add_info[comment][msmt]}", "Conc.", "1/cm^3"]
+        Cn_row = [f"{add_info[comment][msmt]}", "Conc.", "1" + u"/cm\u00B3"]
         [Cn_row.append(i) for i in Cn[msmt]]
         writer.writerow(Cn_row)
 

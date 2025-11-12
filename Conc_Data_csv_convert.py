@@ -18,7 +18,7 @@ data = Particle_analysis.get_data()
 
 el_time, Cn, add_info, filename = data["el_time"], data["Cn"], data["add_info"], data["filename"]
 
-with open(f'{os.path.splitext(filename)[0]}.csv', 'w', encoding='UTF8', newline="") as f:
+with open(f'{os.path.splitext(filename)[0]}.csv', 'w', encoding='iso-8859-1', newline="") as f:
     writer = csv.writer(f)
 
     if ["Comment"] in add_info.columns.values:
@@ -31,7 +31,7 @@ with open(f'{os.path.splitext(filename)[0]}.csv', 'w', encoding='UTF8', newline=
         el_time_row = ["Scan Nr / Comment", "elapsed time", "s"]
         [el_time_row.append(i) for i in el_time[msmt]]
         writer.writerow(el_time_row)
-        Cn_row = [f"{add_info[comment][msmt]}", "Conc.", "1/cm^3"]
+        Cn_row = [f"{add_info[comment][msmt]}", "Conc.", u"/cm\u00B3"]
         [Cn_row.append(i) for i in Cn[msmt]]
         writer.writerow(Cn_row)
 
