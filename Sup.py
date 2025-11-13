@@ -210,7 +210,7 @@ def save_plot(data, save_plot="off", fileaddition=""):
         #data_identifier = Sup.get_variable_name(data)
         path = data["filename"][:-4] + "_" + fileaddition + ".png"
         # path = data["filename"][:-4] + "_" + data_identifier + "_" + fileaddition + ".png"
-        plt.savefig(path, dpi=600, transparent=True)
+        plt.savefig(path, dpi=600, transparent=True, bbox_inches='tight')
         print(f"file saved to {path}")
     else:
         pass
