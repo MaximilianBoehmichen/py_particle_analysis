@@ -188,18 +188,11 @@ def pack_to_dict_df(data, variables):
 
 
 def extract_from_dict(data, used_C="Cn"):
-    if "cut" in used_C:
-        X = data["cut_X"]
-        dX = data["cut_dX"]
-        # dlogX = data["cut_dlogX"]
-        C = data[used_C]
-        # C_dlogX = data[f"cut_{used_C}_dlogX"]
-    else:
-        X = data["X"]
-        dX = data["dX"]
-        # dlogX = data["dlogX"]
-        C = data[used_C]
-        # C_dlogX = data[f"{used_C}_dlogX"]
+    X = data["X"]
+    dX = data["dX"]
+    # dlogX = data["dlogX"]
+    C = data[used_C]
+    # C_dlogX = data[f"{used_C}_dlogX"]
     return X, dX, C
 
 
