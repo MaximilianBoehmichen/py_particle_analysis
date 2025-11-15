@@ -61,7 +61,7 @@ def get_data(method="prompt" ,used_device="", filename=""):
     return data
 
 
-def save_data_to_xlsx(data_dict, fileaddition="particleDF", save_arrays=None):
+def save_data_to_xlsx(data_dict, fileaddition="particleDF", save_arrays="all"):
     """saves selected variables to a csv file, select variables to save in variable_list as list of strings,
      allways use a different fileaddition when saving anything else than the data input array data_identifier"""
     # data_identifier = Sup.get_variable_name(data_dict)
