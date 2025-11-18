@@ -810,61 +810,64 @@ def fit_data(data, scan_nrs, used_C="Cn_dlogX", fit_function="lognormal_function
             multimodal_fit(X[k], C[k], fit_function=fit_function, initial_guess=initial_guess,
                        boundaries=boundaries))
         modes, mode_descriptors = get_fit_modes(X[k], dlogX[k], modality, fit_params_vars, fit_function="lognormal_function")
-        data["results"]["modality"][k] = modality
+        data["results"].loc[k, "modality"] = modality
         data[f"fit_{used_C}"][k] = C_fit
 
         for i in range(modality):
             data[f"fit_{used_C}_modes"][k][i] = modes[i]
-            data["results"][f"dg {i+1}"] = mode_descriptors["dg"][i]
-            data["results"][f"GSD {i + 1}"] = mode_descriptors["GSD"][i]
-            data["results"][f"calc_conc_{used_C_no_dlogX} {i + 1}"] = mode_descriptors["calc_conc"][i]
+            data["results"].loc[k, f"dg {i+1}"] = mode_descriptors["dg"][i]
+            data["results"].loc[k, f"GSD {i + 1}"] = mode_descriptors["GSD"][i]
+            data["results"].loc[k, f"calc_conc_{used_C_no_dlogX} {i + 1}"] = mode_descriptors["calc_conc"][i]
 
     return data
 
 
 
-def plot_fit_data(data, scan_nrs, colors=Def.tum_cm, a=1, legend="automatic", save_plot="off"):
-    """plots the given data, specify measurement to use from sel_Cn array"""
-    # seems to work, just needs another axis label to indicate it is cummulative :D
-    plt.plot(XnoNaNs, C_fit,
-             color='black', lw=3, label='multimodal fit')
-    colors=Def.fhg_cm
-    ct=0
-    for k in range(0,modality):
-        plt.plot(X_row, lognormal_function(X_row, *params[k*3:(k+1)*3]),
-             lw=3, ls=":", label=f"distribution {k+1}", color=colors[ct])
-        ct+=1
+def plot_fit_data(data, scan_nrs, used_C="Cn_dlogX", colors=Def.tum_cm, a=1, legend="automatic", save_plot="off"):
+    """plots the fit data, only plot one dataset at a time"""
+    py_nrs = Sup.py_logic_converter(scan_nrs)
+    X = data["X"]
+    dX = data["dX"]
+    C = data[used_C]
+    C_fit = data["fit_"+used_C]
+    C_modes = data["fit_"+used_C+"_modes"]
+    modality = data["results"]["modality"]
+    used_device = data["used_device"]
+    markers = [".", "x", "o", "v", "^", "s", "8",
+                   "*", "h",","]
+
+    legend_entries = []
+    fig, ax = plt.subplots()
+
+    ct = 0
+    if len(py_nrs) == 1:
+        # plot the distribution and the fit
+        k = py_nrs[0]
+        ax.bar(X[k, :], C[k, :], width=dX[k, :], edgecolor='black', color=colors[0])
+        plt.plot(X[k, :], C_fit[k, :], color='black') #, lw=3, label='multimodal fit')
+        Sup.build_legend(legend_entries, scan_nrs, ct, legend=legend)  # work on build legend!
+
+        #plot the modes one by one
+        for i in range(int(modality[k])):
+            plt.scatter(X[k, :], C_modes[k, i, :], color='black', marker=markers[i])
+                     # lw=3, ls=":", label=f"distribution {k + 1}", color=colors[ct])
+            legend_entries.append(f"Mode {i+1}")
+
+    else:
+        for k in py_nrs:
+            # plot the distribution
+            ax.bar(X[k, :], C[k, :], width=dX[k, :], edgecolor='black', color=colors[ct], alpha=a)
+            plt.plot(X[k, :], C_fit[k, :], color='black', markers=markers[k])  # , lw=3, label='multimodal fit')
+            #add the legend
+            Sup.build_legend(legend_entries, scan_nrs, ct, legend=legend)
+            ct += 1
+
+
     plt.legend()
     plt.xscale("log")
 
-    py_nrs = Sup.py_logic_converter(scan_nrs)
-    used_C = "cum_C"
-    X = data["X"]
-    dX = data["dX"]
-    cum_C = data["cum_C"]
-    calc_conc = get_conc(cum_C)
-    normcum_C = Sup.norm_C(cum_C, calc_conc)
-    used_device = data["used_device"]
-    legend_entries = []
-    fig, ax = plt.subplots()  # height with title 12, without 10
-    ct=0
+    ax = format_plot(fig, ax, used_C, used_device)
 
-    if len(py_nrs) == 1:
-        k = py_nrs[0]
-        ax.bar(X[k, :], normcum_C[k, :], width=dX[k, :], edgecolor='black', color=colors[ct])
-        Sup.build_legend(legend_entries, scan_nrs, ct, legend=legend)
-        # scan_nrs is used here on purpose
-        # print(f"scan {scan_nrs[0]} conc. = " + "{:e}".format(float(calc_conc[k])) + " P/cm" + u"\u00B3")
-    else:
-        for k in py_nrs:
-            ax.bar(X[k, :], normcum_C[k, :], width=dX[k, :], edgecolor='black', color=colors[ct], alpha=a)
-            Sup.build_legend(legend_entries, scan_nrs, ct, legend=legend)
-            # print(f"scan {scan_nrs[k-1]} conc. = " + "{:e}".format(float(calc_conc[k])) + " P/cm" + u"\u00B3")
-            ct += 1
-
-    format_plot(fig, ax, used_C, used_device)
-    #plt.rcParams['figure.dpi'] = 600
-    #plt.rcParams['savefig.dpi'] = 600
     plt.legend(legend_entries)  # , loc='upper left')
     Sup.save_plot(data, save_plot)  # , fileaddition=scan_nr_fileaddition)
 
@@ -911,6 +914,7 @@ if __name__ == "__main__":
     """"""
 
     import Particle_analysis as pa
-    data = pa.get_data("fixed", used_device=2, filename='C:/UniStuff/Code/Python/py_particleanalysis/ExampleFiles/20230704_PALAS_USMPS.txt')
+    data = pa.get_data("fixed", used_device=2, filename='C:/Users/kevin.maier/PycharmProjects/py_particleanalysis/ExampleFiles/20230704_PALAS_USMPS.txt')
+    # data = pa.get_data("fixed", used_device=2, filename='C:/UniStuff/Code/Python/py_particleanalysis/ExampleFiles/20230704_PALAS_USMPS.txt')
     Dist.typical_calculations(data);
     Dist.fit_data(data, [13])

@@ -143,11 +143,13 @@ def import_data(filename):
     # / by number of bins) similar to Method 3 but then rounded to actual even number (gives 64). Then calculating
     # Xl and Xu from midpoints.
 
-    const_dlogX = 1 / np.rint(nr_bins / np.log10(upper_size / lower_size))
-    for k in range(nr_bins):
-        X[i, k] = x_axis[k]
-        Xl[i, k] = (2 * X[i, k]) / (np.pow(10, const_dlogX[i]) + 1)
-        Xu[i, k] = (2 * X[i, k]) / (1 / np.pow(10, const_dlogX[i]) + 1)
+    const_dlogX = 1 / np.rint(nr_bins / np.log10(upper_size / lower_size)) # -> only one number not a row -> Xl and Xu
+    for i in range(nr_scans):
+
+        for k in range(nr_bins):
+            X[i, k] = x_axis [k]
+            Xl[i, k] = (2 * X[i, k]) / (np.pow(10, const_dlogX) + 1)
+            Xu[i, k] = (2 * X[i, k]) / (1 / np.pow(10, const_dlogX) + 1)
 
     # end of the x-array generation
 
