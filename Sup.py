@@ -206,19 +206,20 @@ def build_legend(legend_entries, scan_nrs, ct, legend="automatic"):
     return
 
 
-def save_plot(data, save_plot="off", fileaddition=""):
-    if save_plot=="on":
-        if len(fileaddition) > 0:
-            fileaddition = fileaddition
+def save_plot(data, save_plot="off"):
+    if save_plot=="off":
+        pass
+    else:
+        if save_plot=="on" or save_plot=="":
+            fileaddition = input("Please enter a fileaddition.")
         else:
-            fileaddition = input("Please enter a fileaddition")
+            fileaddition = save_plot
         path = data["filename"][:-4] + "_" + fileaddition + ".png"
         # path = data["filename"][:-4] + "_" + data_identifier + "_" + fileaddition + ".png"
         plt.savefig(path, dpi=600, transparent=True, bbox_inches='tight')
         print(f"file saved to {path}")
-    else:
-        pass
     return
+
 
 def norm_C(C, calc_conc):
     norm_C = np.zeros_like(C)

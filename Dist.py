@@ -561,7 +561,7 @@ def plot_singledata(data, scan_nrs, used_C="Cn", a=1, legend="automatic", save_p
 
     plt.legend(legend_entries)  # , loc='upper left')
 
-    Sup.save_plot(data, save_plot) #, fileaddition=scan_nr_fileaddition)
+    Sup.save_plot(data, save_plot)
 
     plt.show()
     return ax
@@ -893,7 +893,7 @@ def plot_fit_data(data, scan_nrs, used_C="Cn_dlogX", a=1, legend="automatic", sa
     ax = format_plot(fig, ax, used_C, used_device)
 
     plt.legend(legend_entries)  # , loc='upper left')
-    Sup.save_plot(data, save_plot)  # , fileaddition=scan_nr_fileaddition)
+    Sup.save_plot(data, save_plot)
 
     plt.show()
     return ax
