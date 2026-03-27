@@ -13,9 +13,9 @@ from datetime import datetime, timedelta
 
 import numpy as np
 import pandas as pd
-
-from defs import device_list, elementary_charge
 from sup import get_filename
+
+from _v1.defs import device_list, elementary_charge
 
 
 def voltage_to_conc(voltage, flowrate_ccs, n_charges=1):

@@ -14,9 +14,9 @@ from tkinter.filedialog import askopenfilename, askopenfilenames, asksaveasfilen
 
 import matplotlib.pyplot as plt
 import numpy as np
-
-import defs
 import sup
+
+from _v1 import defs
 
 
 def get_filename():

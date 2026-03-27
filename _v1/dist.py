@@ -11,16 +11,15 @@ Created 2024-03-20 by moving functions from particle_analysis.py
 
 import math
 
+import defs
+import dist
 import numpy as np
 import pandas as pd
+import sup
 from matplotlib import pyplot as plt
 from matplotlib import ticker
 from scipy import optimize
 from scipy.signal import find_peaks
-
-import defs
-import dist
-import sup
 
 
 def select_data(data, scan_nrs, used_C="Cn"):

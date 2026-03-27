@@ -11,9 +11,9 @@ from datetime import datetime
 
 import numpy as np
 import pandas as pd
-
-from defs import device_list
 from sup import get_filename
+
+from _v1.defs import device_list
 
 
 def import_data(filename):
@@ -25,7 +25,7 @@ def import_data(filename):
     the PALAS WELAS file)
     time  = list with the starting times of each measurement
     nr_scans = array with the number of the scans=index+1"""
-    with open(filename) as f_in:  # open file and keep open
+    with open(filename, encoding="latin-1") as f_in:  # open file and keep open
         lines = f_in.readlines()  # read the file in line by line
         len_file = len(lines)  # determine the length of the file
         nr_scans = int(

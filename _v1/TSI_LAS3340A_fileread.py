@@ -14,9 +14,9 @@ from datetime import datetime
 
 import numpy as np
 import pandas as pd
-
-from defs import TSI_standard_conditions, device_list
 from sup import convert_standard_to_volumetric_flow, get_filenames
+
+from _v1.defs import TSI_standard_conditions, device_list
 
 
 def rename_columns(df):

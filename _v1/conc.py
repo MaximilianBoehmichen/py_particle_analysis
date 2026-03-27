@@ -14,14 +14,13 @@ Created 2022-03-24
 
 import datetime
 
+import defs
 import matplotlib.dates as mdates
 import numpy as np
 import pandas as pd
+import sup
 from matplotlib import pyplot as plt
 from matplotlib import ticker
-
-import defs
-import sup
 
 # import mpldatacursor  # not used atm
 

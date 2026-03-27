@@ -14,14 +14,14 @@ modified 2024-06 to 2025-11 to work with new data structure
 import dill
 import pandas as pd
 
+# import Imp  #import functions
+import sup  # supporting functions
+
 # from matplotlib import ticker
 # from scipy import optimize
 # import scipy.integrate as integrate
 # from matplotlib import cm as colormap
-import defs  # definitions
-
-# import Imp  #import functions
-import sup  # supporting functions
+from _v1 import defs
 
 
 def get_data(method="prompt", used_device="", filename="", data_choice=""):

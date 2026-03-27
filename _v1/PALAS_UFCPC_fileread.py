@@ -19,9 +19,9 @@ from datetime import datetime
 
 import numpy as np
 import pandas as pd
-
-from defs import device_list
 from sup import get_filename
+
+from _v1.defs import device_list
 
 
 def import_data(filename):
