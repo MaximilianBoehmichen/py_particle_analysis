@@ -15,6 +15,7 @@ class TooManyOptionsError(ParticleAnalysisError):
 
     def __init__(
         self,
+        message: str = "Too many options when selecting reader.",
         *,
         path: Path | None = None,
         possible_readers: InstrumentReaderList | None = None,
@@ -22,11 +23,12 @@ class TooManyOptionsError(ParticleAnalysisError):
         """Initializes the error.
 
         Args:
+            message (str, optional): A descriptive error message.
             path (Path, optional): The path to the file.
             possible_readers (InstrumentReaderList, optional):
                 Which conflicting BaseInstrumentReaders can parse this file.
         """
-        super().__init__("The SmartReader cannot determine the correct reader.")
+        super().__init__(message)
         self.path = path
         self.possible_readers = possible_readers
 

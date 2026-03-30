@@ -16,8 +16,7 @@ class TestBaseInstrumentReader:
         """
 
         class DummyReader(BaseInstrumentReader):
-            @classmethod
-            def can_read(cls, path: Path) -> bool:
+            def can_read(self, path: Path | None) -> bool:
                 return True
 
         yield DummyReader

@@ -16,21 +16,30 @@ class BaseInstrumentReader(ABC):
     """Base instrument reader for all devices.
 
     Attributes:
-        _subclasses (InstrumentReaderList): Internal registry of all available instrument reader classes.
+        _subclass_registry (InstrumentReaderList): Internal registry of all available instrument reader classes.
     """
 
-    _subclasses: InstrumentReaderList = []
+    _is_router = False
+    _subclass_registry: InstrumentReaderList = []
+
+    def __init__(self, path: Path) -> None:
+        """Default constructor for all readers.
+
+        Args:
+            path: The path to the input file.
+        """
+        self.path = path
 
     def __init_subclass__(cls, **kwargs) -> None:
         super().__init_subclass__()
-        if cls not in BaseInstrumentReader._subclasses:
-            BaseInstrumentReader._subclasses.append(cls)
+        if not cls._is_router and cls not in BaseInstrumentReader._subclass_registry:
+            BaseInstrumentReader._subclass_registry.append(cls)
 
     @classmethod
     def _deregister(cls, target: type[BaseInstrumentReader]) -> None:
         """Remove a reader from the subclass registry. Internal use for testing."""
-        if target in cls._subclasses:
-            cls._subclasses.remove(target)
+        if target in cls._subclass_registry:
+            cls._subclass_registry.remove(target)
 
     @classmethod
     def registered_readers(cls) -> InstrumentReaderList:
@@ -39,11 +48,10 @@ class BaseInstrumentReader(ABC):
         Returns:
             InstrumentReaderList: A list of classes that can be used for file type discovery.
         """
-        return cls._subclasses.copy()
+        return cls._subclass_registry.copy()
 
-    @classmethod
     @abstractmethod
-    def can_read(cls, path: Path) -> bool:
+    def can_read(self, path: Path | None) -> bool:
         """Check if this reader can read a given file. It indicates that this class is the correct reader.
 
         Args:
@@ -52,4 +60,3 @@ class BaseInstrumentReader(ABC):
         Returns:
             Whether the read test succeeded.
         """
-        pass

@@ -85,6 +85,10 @@ module = [
 ]
 ignore_missing_imports = true
 
+[tool.coverage.run]
+source = ["src/pypana"]
+branch = true
+
 [tool.coverage.report]
 exclude_also = [
     "def __repr__",
