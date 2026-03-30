@@ -10,7 +10,7 @@ from typing import Unpack
 
 from pypana.readers.base_instrument_reader import (
     BaseInstrumentReader,
-    InstrumentReaderList,
+    InstrumentReaderSet,
 )
 from pypana.readers.base_reader import ReaderKwargs
 from pypana.readers.exceptions.read_error import ReadError
@@ -33,7 +33,7 @@ class ReaderRedirector(ABCMeta):
             path: The path to the input file.
             **kwargs: kwargs
         """
-        possible_readers: InstrumentReaderList = []
+        possible_readers: InstrumentReaderSet = set()
 
         if not Path.exists(path):
             raise ReadError(
@@ -43,7 +43,7 @@ class ReaderRedirector(ABCMeta):
 
         for reader in BaseInstrumentReader.registered_readers():
             if reader.can_read(path):
-                possible_readers.append(reader)
+                possible_readers.add(reader)
 
         if len(possible_readers) == 0:
             raise ReadError(
@@ -52,9 +52,9 @@ class ReaderRedirector(ABCMeta):
             )
 
         if len(possible_readers) > 1:
-            raise TooManyOptionsError(path=path)
+            raise TooManyOptionsError(path=path, possible_readers=possible_readers)
 
         # suppress PyCharm type checking, since everything is correctly typed. **kwargs not yet used,
         # but maybe in the future
         # noinspection PyArgumentList
-        return possible_readers[0](path, **kwargs)
+        return possible_readers.pop()(path, **kwargs)

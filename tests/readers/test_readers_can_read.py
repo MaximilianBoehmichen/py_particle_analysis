@@ -3,15 +3,16 @@ from pathlib import Path
 import pytest
 
 from pypana.readers.base_instrument_reader import BaseInstrumentReader
-from pypana.readers.tsi.tsi_las3340a import TSILAS3340AInstrumentReader
+from readers.defs import (
+    INSTRUMENT_READER_TEST_CASES,
+    NON_EXISTING_FILE,
+    NON_INSTRUMENT_FILE,
+)
 
-EXAMPLE_FILES_DIR = Path(__file__).resolve().parents[2] / "ExampleFiles"
-TEST_CASES = [
-    (EXAMPLE_FILES_DIR / "20240704_TSI_LAS3340A", TSILAS3340AInstrumentReader),
-]
 
-
-@pytest.mark.parametrize("file_path, expected_reader_class", TEST_CASES)
+@pytest.mark.parametrize(
+    "file_path, expected_reader_class", INSTRUMENT_READER_TEST_CASES
+)
 @pytest.mark.parametrize("reader_class", BaseInstrumentReader.registered_readers())
 def test_can_read_example_exclusive(
     file_path: Path,
@@ -31,3 +32,16 @@ def test_can_read_example_exclusive(
         assert result is False, (
             f"Expected {reader_class.__name__} to reject '{file_path.name}'"
         )
+
+
+@pytest.mark.parametrize("reader_class", BaseInstrumentReader.registered_readers())
+def test_can_read_invalid_files(
+    reader_class: type[BaseInstrumentReader],
+) -> None:
+    assert reader_class.can_read(NON_EXISTING_FILE) is False, (
+        f"Expected {reader_class.__name__} to reject non existing file'"
+    )
+
+    assert reader_class.can_read(NON_INSTRUMENT_FILE) is False, (
+        f"Expected {reader_class.__name__} to reject non existing file'"
+    )

@@ -12,7 +12,7 @@ from typing import Unpack
 
 from pypana.readers.base_reader import BaseReader, ReaderKwargs
 
-type InstrumentReaderList = list[type[BaseInstrumentReader]]
+type InstrumentReaderSet = set[type[BaseInstrumentReader]]
 
 
 class BaseInstrumentReader(BaseReader, ABC):
@@ -22,7 +22,7 @@ class BaseInstrumentReader(BaseReader, ABC):
         _subclass_registry (InstrumentReaderList): Internal registry of all available instrument reader classes.
     """
 
-    _subclass_registry: InstrumentReaderList = []
+    _subclass_registry: InstrumentReaderSet = set()
 
     def __init__(self, path: Path, **kwargs: Unpack[ReaderKwargs]) -> None:
         """Default constructor for all readers.
@@ -35,17 +35,15 @@ class BaseInstrumentReader(BaseReader, ABC):
 
     def __init_subclass__(cls, **kwargs) -> None:
         super().__init_subclass__()
-        if cls not in BaseInstrumentReader._subclass_registry:
-            BaseInstrumentReader._subclass_registry.append(cls)
+        BaseInstrumentReader._subclass_registry.add(cls)
 
     @classmethod
     def _deregister(cls, target: type[BaseInstrumentReader]) -> None:
         """Remove a reader from the subclass registry. Internal use for testing."""
-        if target in cls._subclass_registry:
-            cls._subclass_registry.remove(target)
+        cls._subclass_registry.discard(target)
 
     @classmethod
-    def registered_readers(cls) -> InstrumentReaderList:
+    def registered_readers(cls) -> InstrumentReaderSet:
         """Returns a copy of all registered readers.
 
         Returns:

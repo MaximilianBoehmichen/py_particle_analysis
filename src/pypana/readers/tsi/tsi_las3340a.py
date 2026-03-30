@@ -10,6 +10,7 @@ import re
 from pathlib import Path
 
 from pypana.readers.base_instrument_reader import BaseInstrumentReader
+from pypana.readers.defs import IGNORED_FILES
 from pypana.readers.exceptions.read_error import ReadError
 
 
@@ -45,7 +46,7 @@ class TSILAS3340AInstrumentReader(BaseInstrumentReader):
             return False
 
         file_pattern = re.compile(r"^\d{8}_[1-9]\d*")
-        files = list(path.iterdir())
+        files = [f for f in path.iterdir() if f.name not in IGNORED_FILES]
 
         if not files:
             return False
@@ -54,7 +55,7 @@ class TSILAS3340AInstrumentReader(BaseInstrumentReader):
             if not file_pattern.match(file.name):
                 return False
 
-            with Path.open(file) as f:
+            with Path.open(file, "r") as f:
                 header = f.readline().split()
 
                 if not all(a in header[:15] for a in anchors):

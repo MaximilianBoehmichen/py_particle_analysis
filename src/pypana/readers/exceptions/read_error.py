@@ -31,7 +31,7 @@ class ReadError(ParticleAnalysisError):
     def __str__(self) -> str:
         msg = super().__str__()
 
-        if self.path:
+        if self.path:  # pragma: no cover
             msg = f"{msg} [File: {self.path}]."
 
         return msg

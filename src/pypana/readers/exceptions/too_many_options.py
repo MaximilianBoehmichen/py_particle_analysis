@@ -7,7 +7,7 @@ because the given file's contents are not uniquely parseable by only one impleme
 from pathlib import Path
 
 from pypana.pana_error import ParticleAnalysisError
-from pypana.readers.base_instrument_reader import InstrumentReaderList
+from pypana.readers.base_instrument_reader import InstrumentReaderSet
 
 
 class TooManyOptionsError(ParticleAnalysisError):
@@ -18,7 +18,7 @@ class TooManyOptionsError(ParticleAnalysisError):
         message: str = "Too many options when selecting reader.",
         *,
         path: Path | None = None,
-        possible_readers: InstrumentReaderList | None = None,
+        possible_readers: InstrumentReaderSet | None = None,
     ) -> None:
         """Initializes the error.
 
@@ -35,14 +35,16 @@ class TooManyOptionsError(ParticleAnalysisError):
     def __str__(self) -> str:
         msg = super().__str__()
 
-        if self.path:
+        if self.path:  # pragma: no cover
             msg = f"{msg} [File: {self.path}]."
 
-        if self.possible_readers:
-            reader_names = [cls.__name__ for cls in self.possible_readers]
+        if self.possible_readers:  # pragma: no cover
+            reader_names = [
+                f"{cls._device_name} / {cls.__name__}" for cls in self.possible_readers
+            ]
             msg = (
                 f"{msg}\nPossible InstrumentReaders can parse the given file: "
-                f"{', '.join(reader_names)}."
+                f"{',\n'.join(reader_names)}."
             )
 
         return msg
