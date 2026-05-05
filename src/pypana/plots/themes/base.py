@@ -121,7 +121,7 @@ class BaseTheme(Debuggable):
     axes_edgecolor: ClassVar[str | None] = None
     xtick_color: ClassVar[str | None] = None
     ytick_color: ClassVar[str | None] = None
-    dpi: ClassVar[int | None] = None
+    dpi: ClassVar[int | None] = 300
 
     # ----- PRIVATE ----- #
     _subclass_registry: ThemeSet = set()

@@ -64,13 +64,6 @@ class _Settings(BaseSettings):
         description="The theme to use for matplotlib visualizations. Can be overriden per visualization call as kwarg.",
     )
 
-    # ----- EXPORT ----- #
-    EXPORT_DPI: int = Field(
-        default=600,
-        title="Export DPI for matplotlib.pyplot",
-        description="The DPI for matplotlib.pyplot image exports. The standard figure is then 3840x2880 pixels.",
-    )
-
 
 class UnitScale(float, Enum):
     """Scaling factor for sizes."""

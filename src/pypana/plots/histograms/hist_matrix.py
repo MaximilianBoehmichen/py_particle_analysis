@@ -20,10 +20,7 @@ from pypana.plots.utils import split_kwargs
 from pypana.utils.measurement_data_type import MeasurementDataType
 
 STANDARD_HIST_SINGLE_KWARGS: dict[str, Any] = {
-    "hist_type": "bar",
     "legend": "lower right",
-    "secondary": "cdf",
-    "yscale": "linear",
     "bar_edgecolor": "black",
     "bar_label": lambda m: f"Measurement {m.scan_nr}",
     "bar_linewidth": 0.25,
@@ -36,10 +33,7 @@ These parameters may change with newer versions of pypana.
 """
 
 STANDARD_HIST_MATRIX_KWARGS: dict[str, Any] = {
-    "hist_type": "bar",
     "legend": "column",
-    "secondary": "cdf",
-    "yscale": "linear",
     "bar_label": lambda m: f"Measurement {m.scan_nr}",
     "bar_linewidth": 0,
     "secondary_alpha": 0.7,
