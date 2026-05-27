@@ -77,7 +77,7 @@ def plot_hist_matrix(  # pragma: no cover # noqa: PLR0912, PLR0915
     xlabel: str | None = None,
     xlim: tuple[float, float] = (-np.inf, np.inf),
     xmajor_formatter: Formatter | str | None = None,
-    xmajor_locations: tuple[float] | None = None,
+    xmajor_locations: tuple[float, ...] | None = None,
     ylabel: str | None = None,
     ylim: tuple[float, float] | None = None,
     ymajor_formatter: Formatter | str | None = None,
@@ -290,19 +290,23 @@ def _format_ax(  # pragma: no cover
     ylim: tuple[float, float] | None,
     ymajor_formatter: Formatter | str | None,
     yscale: Literal["linear", "log"],
-    xmajor_locations: tuple[float] | None = None,
+    xmajor_locations: tuple[float, ...] | None = None,
 ) -> None:
     """Sets the parameters for ax."""
     xmajor_locations = xmajor_locations or (1.0, 2.0, 5.0)
-    xminor_locations = tuple(x for x in (1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0) if x not in xmajor_locations)
+    xminor_locations = tuple(
+        x
+        for x in (1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0)
+        if x not in xmajor_locations
+    )
 
     ax.set_xscale("log")
     ax.set_yscale(yscale)
 
-    ax.xaxis.set_major_locator(ticker.LogLocator(base=10.0, subs=xmajor_locations, numticks=15))
-    ax.xaxis.set_minor_locator(
-        ticker.LogLocator(base=10.0, subs=xminor_locations)
+    ax.xaxis.set_major_locator(
+        ticker.LogLocator(base=10.0, subs=xmajor_locations, numticks=15)
     )
+    ax.xaxis.set_minor_locator(ticker.LogLocator(base=10.0, subs=xminor_locations))
 
     _xformatter = coerce_formatter(xmajor_formatter) or ticker.EngFormatter(unit="m")
     ax.xaxis.set_major_formatter(_xformatter)

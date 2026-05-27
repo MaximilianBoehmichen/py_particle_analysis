@@ -175,7 +175,7 @@ class InstrumentData(BaseModel, Debuggable):
         Returns:
             The overview DataFrame.
         """
-        rows = {key: m.summary()  for key, m in self.measurements.items()}
+        rows = {key: m.summary() for key, m in self.measurements.items()}
         return pd.DataFrame.from_dict(rows, orient="index")
 
     def keep_measurements(  # noqa: PLR0912
@@ -396,7 +396,7 @@ class InstrumentData(BaseModel, Debuggable):
         xlabel: str | None = None,
         xlim: tuple[float, float] | None = None,
         xmajor_formatter: Formatter | str | None = None,
-        xmajor_locations: tuple[float] | None = None,
+        xmajor_locations: tuple[float, ...] | None = None,
         xspace_sides: float = 0.0,
         ylabel: str | None = None,
         ylim: tuple[float, float] | None = None,

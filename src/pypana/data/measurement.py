@@ -130,7 +130,7 @@ class Measurement(BaseModel, Debuggable):
             "mean": self.mean,
             "median": self.median,
             "mode": self.mode,
-            "other": f"[{", ".join(f"{k}: {v}" for k, v in self.other.items())}]",
+            "other": f"[{', '.join(f'{k}: {v}' for k, v in (self.other or {}).items())}]",
         }
 
     @cached_property
