@@ -26,6 +26,7 @@ dependencies = [
     "simdkalman>=1.0.4",
     "statsmodels>=0.14.6",
     "tqdm>=4.67.3",
+    "typing-extensions>=4.15.0",
     "unidip>=0.1.1",
 ]
 
@@ -128,4 +129,5 @@ docs = [
     "sphinx-copybutton>=0.5.2",
     "sphinx-design>=0.7.0",
     "sphinx-rtd-theme>=3.1.0",
+    "sphinxcontrib-svg2pdfconverter[cairosvg]>=2.1.0",
 ]

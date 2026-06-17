@@ -13,11 +13,11 @@ from data.strategies import (
     populated_measurement,
 )
 from pypana.data.collection_efficiency import CollectionEfficiency
+from pypana.data.defs import DataTypeLike, Quantity
 from pypana.data.exceptions.invalid_index_error import InvalidIndexError
 from pypana.data.instrument_data import InstrumentData
-from pypana.data._measurement import Measurement
+from pypana.data.measurement import Measurement
 from pypana.exceptions.incompatible_argument_error import IncompatibleArgumentError
-from pypana.utils.measurement_data_type import MeasurementDataType
 
 # four measurements paired consecutively yield two (up, down) pairs for collection efficiency
 EXPECTED_PAIRS = 2
@@ -145,42 +145,13 @@ def test_select_measurements_deepcopy(measurements: dict[int, Measurement]) -> N
         assert m1.time == m2.time
         assert np.array_equal(m1.d_p, m2.d_p)
 
-    data.measurements[first_scan_nr].d_p = np.append(
-        data.measurements[first_scan_nr].d_p, 1
-    )
+    source_dist = data.measurements[first_scan_nr].distributions[Quantity.NUMBER]
+    source_dist.delta = source_dist.delta + 1.0
 
     assert not np.array_equal(
-        data.measurements[first_scan_nr].d_p, data_new.measurements[first_scan_nr].d_p
+        data.measurements[first_scan_nr]["dN"],
+        data_new.measurements[first_scan_nr]["dN"],
     )
-
-
-@settings(max_examples=1)
-@given(measurements=measurement_dict(min_size=5, max_size=20))
-@patch("pypana.data.instrument_data.plot_hist_single_plotly")
-@patch("pypana.data.instrument_data.plot_hist_single_matplotlib")
-def test_plot_histogram_single(
-    matplotlib_mock: Mock, plotly_mock: Mock, measurements: dict[int, Measurement]
-) -> None:
-    """Test the plot_histogram_single function wraps correctly."""
-    data = InstrumentData(measurements=measurements)
-    first_scan_nr = min(list(data.measurements.keys()))
-
-    with pytest.raises(InvalidIndexError):
-        data.plot_histogram_single(-1, data_type=MeasurementDataType.dndlogdp)
-
-    data.plot_histogram_single(
-        first_scan_nr, data_type=MeasurementDataType.dn, backend="matplotlib"
-    )
-
-    assert matplotlib_mock.call_count == 1
-    assert plotly_mock.call_count == 0
-
-    data.plot_histogram_single(
-        first_scan_nr, data_type=MeasurementDataType.dn, backend="plotly"
-    )
-
-    assert matplotlib_mock.call_count == 1
-    assert plotly_mock.call_count == 1
 
 
 def test_len_empty_returns_zero() -> None:
@@ -460,14 +431,14 @@ def test_mapply_replaces_measurements_with_function_output(
     data = InstrumentData(measurements=measurements)
     original_keys = list(data.measurements.keys())
 
-    def bump_d_p(m: Measurement) -> Measurement:
-        m.d_p = np.append(m.d_p, 1.0)
+    def zero_out(m: Measurement) -> Measurement:
+        m.distributions[Quantity.NUMBER].apply(np.zeros_like)
         return m
 
-    data.mapply(bump_d_p)
+    data.mapply(zero_out)
     assert list(data.measurements.keys()) == original_keys
     for m in data.measurements.values():
-        assert m.d_p.tolist() == [1.0]
+        assert np.all(m.distributions[Quantity.NUMBER]["dN"] == 0.0)
 
 
 @settings(max_examples=5)
@@ -609,7 +580,7 @@ def test_histogram_accepts_int_tuple_and_list_inputs(
     plot_mock: Mock, data: InstrumentData
 ) -> None:
     """int, tuple, list-of-int and list-of-tuple inputs all reach the plotter."""
-    dt = MeasurementDataType.dndlogdp
+    dt: DataTypeLike = "dN/dlogdp"
 
     data.histogram(0, dt)
     data.histogram((0, 1), dt)
@@ -627,7 +598,7 @@ def test_histogram_non_rectangular_raises(
 ) -> None:
     """A ragged measurement matrix is rejected."""
     with pytest.raises(InvalidIndexError):
-        data.histogram([[0], [1, 2]], MeasurementDataType.dn)
+        data.histogram([[0], [1, 2]], "dN")
     assert plot_mock.call_count == 0
 
 
@@ -639,7 +610,7 @@ def test_histogram_xspace_sides_with_xlim_is_incompatible(
 ) -> None:
     """xspace_sides and xlim cannot be combined."""
     with pytest.raises(IncompatibleArgumentError):
-        data.histogram(0, MeasurementDataType.dn, xspace_sides=0.1, xlim=(1e-9, 1e-6))
+        data.histogram(0, "dN", xspace_sides=0.1, xlim=(1e-9, 1e-6))
 
 
 @settings(max_examples=3)
@@ -650,7 +621,7 @@ def test_histogram_xspace_sides_computes_limits(
 ) -> None:
     """xspace_sides alone drives the xlim computation path."""
     with np.errstate(all="ignore"):
-        data.histogram(0, MeasurementDataType.dn, xspace_sides=0.1)
+        data.histogram(0, "dN", xspace_sides=0.1)
     assert plot_mock.call_count == 1
 
 
@@ -659,7 +630,7 @@ def test_histogram_xspace_sides_computes_limits(
 @patch("pypana.data.instrument_data.plot_hist_matrix")
 def test_histogram_explicit_xlim(plot_mock: Mock, data: InstrumentData) -> None:
     """An explicit, ordered xlim is accepted."""
-    data.histogram(0, MeasurementDataType.dn, xlim=(1e-9, 1e-6))
+    data.histogram(0, "dN", xlim=(1e-9, 1e-6))
     assert plot_mock.call_count == 1
 
 
@@ -669,7 +640,7 @@ def test_histogram_explicit_xlim(plot_mock: Mock, data: InstrumentData) -> None:
 def test_histogram_inverted_xlim_raises(plot_mock: Mock, data: InstrumentData) -> None:
     """An xlim whose lower bound is not below the upper bound is rejected."""
     with pytest.raises(ValueError):
-        data.histogram(0, MeasurementDataType.dn, xlim=(1e-6, 1e-9))
+        data.histogram(0, "dN", xlim=(1e-6, 1e-9))
 
 
 @settings(max_examples=3)
@@ -789,5 +760,5 @@ def test_histogram_unsupported_input_type_raises(
 ) -> None:
     """An m that is neither int, tuple nor list yields an empty, non-full matrix."""
     with pytest.raises(InvalidIndexError):
-        data.histogram(1.5, MeasurementDataType.dn)  # type: ignore[arg-type]
+        data.histogram(1.5, "dN")  # type: ignore[arg-type]
     assert plot_mock.call_count == 0

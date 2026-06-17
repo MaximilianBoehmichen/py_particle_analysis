@@ -1,4 +1,5 @@
 """The SizeDistribution, it holds the data of the chosen :class:`~pypana.data.defs.quantity.Quantity`."""
+
 from collections.abc import Callable
 from functools import cached_property
 from typing import ClassVar, Literal, Self
@@ -7,7 +8,7 @@ import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
 
 from pypana.data.bin_axis import BinAxis
-from pypana.data.defs import FloatArray, Quantity
+from pypana.data.defs import DataType, DataTypeLike, FloatArray, Normalization, Quantity
 from pypana.utils.debug import Debuggable
 
 
@@ -43,8 +44,8 @@ class SizeDistribution(BaseModel, Debuggable):
         default="measured",
         frozen=True,
         description="Whether this distribution was reported by the instrument or derived "
-                    "from another quantity (e.g. dV from dN). Normalization conversion "
-                    "(Δ ↔ Δ/dlogdp) does not count as derivation.",
+        "from another quantity (e.g. dV from dN). Normalization conversion "
+        "(Δ ↔ Δ/dlogdp) does not count as derivation.",
     )  # unsupported now, for when conversions are implemented.
 
     _action_log: list[str] = PrivateAttr(default_factory=list)
@@ -83,7 +84,9 @@ class SizeDistribution(BaseModel, Debuggable):
     def _check_values(self) -> Self:
         """Checks that at least one representation is present and fits the axis."""
         if self.raw_delta is None and self.raw_delta_dlogdp is None:
-            raise ValueError("At least one of `delta` or `delta_dlogdp` must be supplied.")
+            raise ValueError(
+                "At least one of `delta` or `delta_dlogdp` must be supplied."
+            )
 
         for values in (self.raw_delta, self.raw_delta_dlogdp):
             if values is None:
@@ -98,6 +101,32 @@ class SizeDistribution(BaseModel, Debuggable):
                 )
 
         return self
+
+    def __getitem__(self, key: DataTypeLike) -> FloatArray:
+        """Read this distribution's values in the requested representation.
+
+        Args:
+            key: A data type whose quantity matches this distribution. ``"dN"`` (per-bin)
+                or ``"dN/dlogdp"`` (normalized). A bare quantity defaults to the per-bin form.
+
+        Returns:
+            The per-bin (``delta``) or normalized (``delta_dlogdp``) values.
+
+        Raises:
+            KeyError: If the requested quantity differs from this distribution's quantity.
+        """
+        requested = DataType.parse(key)
+
+        if requested.quantity is not self.quantity:
+            raise KeyError(
+                f"This is a {self.quantity.full_name} distribution; "
+                f"cannot read {requested.quantity.full_name} values from it."
+            )
+
+        if requested.normalization is Normalization.DLOG_DP:
+            return self.delta_dlogdp
+
+        return self.delta
 
     @cached_property
     def delta(self) -> FloatArray:
@@ -128,7 +157,9 @@ class SizeDistribution(BaseModel, Debuggable):
         if self.total == 0:
             return 0.0
 
-        return float(10 ** (np.nansum(np.log10(self.axis.d_p) * self.delta) / self.total))
+        return float(
+            10 ** (np.nansum(np.log10(self.axis.d_p) * self.delta) / self.total)
+        )
 
     @cached_property
     def geo_std_dev(self) -> float:
@@ -137,7 +168,9 @@ class SizeDistribution(BaseModel, Debuggable):
             return 1.0
 
         log_dg = np.log10(self.geo_mean)
-        var = np.nansum(self.delta * (np.log10(self.axis.d_p) - log_dg) ** 2) / self.total
+        var = (
+            np.nansum(self.delta * (np.log10(self.axis.d_p) - log_dg) ** 2) / self.total
+        )
 
         return float(10 ** np.sqrt(var))
 

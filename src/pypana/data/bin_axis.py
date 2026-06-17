@@ -3,6 +3,7 @@
 The grid is defined by its ``n + 1`` bin boundaries; the midpoints and bin widths are derived from them.
 All diameters are in meters, see :class:`~pypana.data.defs.quantity.Quantity`.
 """
+
 from functools import cached_property
 from typing import Literal, Self
 
@@ -11,6 +12,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from pypana.data.defs import FloatArray
 from pypana.utils.debug import Debuggable
+
+MIN_VALUES = 2
+type DiameterTypes = Literal["mobility", "optical", "aerodynamic"]
 
 
 class BinAxis(BaseModel, Debuggable):
@@ -31,16 +35,16 @@ class BinAxis(BaseModel, Debuggable):
         default=None,
         alias="d_p",
         description="Reported midpoint diameter per bin [m]. "
-                    "If omitted, it is derived from the boundaries via `midpoint`.",
+        "If omitted, it is derived from the boundaries via `midpoint`.",
     )
 
     midpoint: Literal["geometric", "arithmetic"] = Field(
         default="geometric",
-        description="How to derive the midpoint when d_p is not supplied. Ignored if d_p is given."
+        description="How to derive the midpoint when d_p is not supplied. Ignored if d_p is given.",
     )
-    diameter_type: Literal["mobility", "optical", "aerodynamic"] = Field(
+    diameter_type: DiameterTypes = Field(
         description="Physical basis of the measured diameter. Gates whether cross-quantity "
-                    "derivation (e.g. dV from dN) is physically valid. Unused for now",
+        "derivation (e.g. dV from dN) is physically valid. Unused for now",
     )
 
     @field_validator("bin_boundaries")
@@ -64,7 +68,7 @@ class BinAxis(BaseModel, Debuggable):
         if value.ndim != 1:
             raise ValueError("bin_boundaries must be 1D.")
 
-        if value.size < 2:
+        if value.size < MIN_VALUES:
             raise ValueError("bin_boundaries needs at least 2 entries (one bin).")
 
         if not np.all(value > 0):
@@ -85,7 +89,9 @@ class BinAxis(BaseModel, Debuggable):
             raise ValueError("Wrong d_p shape.")
 
         if not np.all((self.d_lower <= self.raw_d_p) & (self.raw_d_p <= self.d_upper)):
-            raise ValueError("At least one d_p lies outside its corresponding boundaries.")
+            raise ValueError(
+                "At least one d_p lies outside its corresponding boundaries."
+            )
 
         return self
 

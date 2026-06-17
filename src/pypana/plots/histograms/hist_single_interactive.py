@@ -8,6 +8,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import ticker
 from matplotlib.widgets import Slider
+from typing_extensions import deprecated
 
 from pypana.config import settings
 from pypana.data._measurement import FloatArray, Measurement
@@ -16,6 +17,7 @@ from pypana.plots.themes.utils import resolve_color
 from pypana.utils.measurement_data_type import MeasurementDataType
 
 
+@deprecated("Will be replaced with a new version.")
 def plot_hist_single_interactive_matplotlib(  # pragma: no cover # noqa: PLR0915
     measurements: Sequence[Measurement],
     *,

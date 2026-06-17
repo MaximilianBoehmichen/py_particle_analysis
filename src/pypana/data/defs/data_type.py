@@ -2,6 +2,7 @@
 
 This is purely used for requests from the user.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -20,7 +21,7 @@ class DataType(Debuggable):
     normalization: Normalization
 
     @classmethod
-    def parse(cls, value: DataTypeLike) -> DataType:
+    def parse(cls, value: DataTypeLike | str) -> DataType:
         """Parses a string into a DataType object.
 
         Args:

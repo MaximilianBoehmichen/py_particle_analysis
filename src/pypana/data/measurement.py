@@ -10,10 +10,11 @@ from typing import Any, Self, overload
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from pypana.data.bin_axis import BinAxis
-from pypana.data.time_series import TimeSeries
-from pypana.data.defs import DataType, DataTypeLike, FloatArray, Normalization, Quantity
+from pypana.data.bin_axis import BinAxis, DiameterTypes
+from pypana.data.defs import DataType, DataTypeLike, FloatArray, Quantity
+from pypana.data.defs.data_type_str import DataTypeStr
 from pypana.data.size_distribution import SizeDistribution
+from pypana.data.time_series import TimeSeries
 from pypana.utils.debug import Debuggable
 
 
@@ -42,7 +43,7 @@ class Measurement(BaseModel, Debuggable):
         description="Time series, keyed by their quantity.",
     )
 
-    other: dict[Hashable, Any] | None = Field(
+    other: dict[Hashable, Any] = Field(
         default_factory=dict,
         description="Other measurement data that is currently not directly supported in other fields.",
     )
@@ -51,14 +52,18 @@ class Measurement(BaseModel, Debuggable):
     def _check_payloads(self) -> Self:
         """Checks payloads are present, correctly keyed, and that size distributions share the axis."""
         if not self.distributions and not self.series:
-            raise ValueError("A measurement needs at least one size distribution or time series.")
+            raise ValueError(
+                "A measurement needs at least one size distribution or time series."
+            )
 
         if self.distributions and self.axis is None:
             raise ValueError("Size distributions require an `axis`.")
 
         for quantity, dist in self.distributions.items():
             if dist.quantity is not quantity:
-                raise ValueError(f"Distribution keyed {quantity!r} has quantity {dist.quantity!r}.")
+                raise ValueError(
+                    f"Distribution keyed {quantity!r} has quantity {dist.quantity!r}."
+                )
 
             if dist.axis is not self.axis:
                 raise ValueError(
@@ -67,24 +72,25 @@ class Measurement(BaseModel, Debuggable):
 
         for quantity, ts in self.series.items():
             if ts.quantity is not quantity:
-                raise ValueError(f"Time series keyed {quantity!r} has quantity {ts.quantity!r}.")
+                raise ValueError(
+                    f"Time series keyed {quantity!r} has quantity {ts.quantity!r}."
+                )
 
         return self
 
+    @overload
+    def __getitem__(self, key: Quantity) -> Self: ...
 
     @overload
-    def __getitem__(self, key: Quantity) -> Self:
-        ...
+    def __getitem__(self, key: DataType) -> FloatArray: ...
 
     @overload
-    def __getitem__(self, key: DataType) -> FloatArray:
-        ...
+    def __getitem__(self, key: DataTypeStr) -> FloatArray: ...
 
     @overload
-    def __getitem__(self, key: str) -> FloatArray | Self:
-        ...
+    def __getitem__(self, key: str) -> FloatArray | Self: ...
 
-    def __getitem__(self, key: DataTypeLike) -> "FloatArray | Measurement":
+    def __getitem__(self, key: DataTypeLike | str) -> "FloatArray | Measurement":
         """Filter by quantity or read binned values.
 
         Args:
@@ -100,7 +106,7 @@ class Measurement(BaseModel, Debuggable):
         quantity: Quantity | None
 
         try:
-            quantity = Quantity(key)
+            quantity = Quantity(str(key))
         except ValueError:
             quantity = None
 
@@ -115,7 +121,9 @@ class Measurement(BaseModel, Debuggable):
                 series[quantity] = self.series[quantity]
 
             if not distributions and not series:
-                distributions[quantity] = self._derive(quantity)  # raises NotImplementedError for now
+                distributions[quantity] = self._derive(
+                    quantity
+                )  # raises NotImplementedError for now
 
             return type(self)(
                 scan_nr=self.scan_nr,
@@ -126,14 +134,8 @@ class Measurement(BaseModel, Debuggable):
                 other=self.other,
             )
 
-        requested: DataType = DataType.parse(key)
-        dist = self._distribution(requested.quantity)
-
-        match requested.normalization:
-            case Normalization.NONE:
-                return dist.delta
-            case Normalization.DLOG_DP:
-                return dist.delta_dlogdp
+        requested = DataType.parse(key)
+        return self._distribution(requested.quantity)[requested]
 
     def __contains__(self, key: object) -> bool:
         """Whether a quantity is present as a distribution or a series."""
@@ -144,6 +146,7 @@ class Measurement(BaseModel, Debuggable):
 
         Args:
             quantity: The quantity to resolve.
+
         Raises:
             KeyError: If this measurement has no size distributions at all (time-series only).
             NotImplementedError: If the quantity would need deriving from another.
@@ -194,6 +197,57 @@ class Measurement(BaseModel, Debuggable):
 
         return payloads[0]
 
+    def _grid(self) -> BinAxis:
+        """The shared size axis, or error for time-series-only measurements."""
+        if self.axis is None:
+            raise AttributeError("This measurement is time-series only.")
+
+        return self.axis
+
+    @property
+    def n_bins(self) -> int:
+        """Number of bins on the shared axis."""
+        return self._grid().n_bins
+
+    @property
+    def diameter_type(self) -> DiameterTypes:
+        """Physical diameter basis of the shared axis."""
+        return self._grid().diameter_type
+
+    @property
+    def delta_log_d_p(self) -> FloatArray:
+        """Logarithmic bin width Δlog₁₀(d_p) (from the shared axis)."""
+        return self._grid().delta_log_d_p
+
+    @property
+    def d_p(self) -> FloatArray:
+        """Midpoint diameter of each bin [m] (from the shared axis)."""
+        return self._grid().d_p
+
+    @property
+    def delta_d_p(self) -> FloatArray:
+        """Absolute bin width Δd_p [m] (from the shared axis)."""
+        return self._grid().delta_d_p
+
+    @property
+    def bin_boundaries(self) -> FloatArray:
+        """The n+1 bin boundaries [m] (from the shared axis)."""
+        return self._grid().bin_boundaries
+
+    def cut(self, d: tuple[float, float]) -> Self:
+        """Zeroes bins whose midpoint lies outside ``(lower, upper)``, in place, on every distribution.
+
+        Args:
+            d: The (lower, upper) diameter bounds [m].
+
+        Returns:
+            Itself, after cutting.
+        """
+        for dist in self.distributions.values():
+            dist.cut(d)
+
+        return self
+
     @property
     def quantities(self) -> tuple[Quantity, ...]:
         """The quantities stored in this measurement (distributions and series)."""
@@ -233,6 +287,8 @@ class Measurement(BaseModel, Debuggable):
             "scan_nr": self.scan_nr,
             "time": self.time,
             "n_bins": self.axis.n_bins if self.axis is not None else None,
-            "distributions": {str(q): d.summary() for q, d in self.distributions.items()},
+            "distributions": {
+                str(q): d.summary() for q, d in self.distributions.items()
+            },
             "other": f"[{', '.join(f'{k}: {v}' for k, v in (self.other or {}).items())}]",
         }

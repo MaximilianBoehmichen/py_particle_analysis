@@ -25,6 +25,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
     "sphinx.ext.coverage",
+    "sphinxcontrib.cairosvgconverter",
     "sphinx_copybutton",
     "sphinx_design",
     "sphinxcontrib.autodoc_pydantic",
@@ -58,3 +59,5 @@ autodoc_default_options = {
 autodoc_pydantic_model_show_config_summary = False
 autodoc_pydantic_model_show_validator_summary = False
 autodoc_pydantic_model_show_json = False
+
+latex_engine = "xelatex"

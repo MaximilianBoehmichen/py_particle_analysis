@@ -15,8 +15,11 @@ from pathlib import Path
 import numpy as np
 
 from pypana.config import UnitScale
+from pypana.data.bin_axis import BinAxis
+from pypana.data.defs import FloatArray, Quantity
 from pypana.data.instrument_data import InstrumentData
-from pypana.data._measurement import FloatArray, Measurement
+from pypana.data.measurement import Measurement
+from pypana.data.size_distribution import SizeDistribution
 from pypana.readers.base_instrument_reader import BaseInstrumentReader
 from pypana.readers.base_reader import InputType
 from pypana.readers.exceptions.read_error import ReadError
@@ -123,16 +126,23 @@ class PALASUSMPSInstrumentReader(BaseInstrumentReader):
         d_upper = np.array(rows["Xo"], dtype=float) * self._SIZE_SCALE
         d_p = np.array(rows["X"], dtype=float) * self._SIZE_SCALE
 
-        delta_log_d_p = np.log10(d_upper) - np.log10(d_lower)
         bin_boundaries: FloatArray = np.append(d_lower, d_upper[-1])
+
+        axis = BinAxis(
+            bin_boundaries=bin_boundaries,
+            d_p=d_p,
+            diameter_type="mobility",
+        )
+        number = SizeDistribution(
+            quantity=Quantity.NUMBER,
+            axis=axis,
+            delta=np.array(rows["dCn_inv_diff"], dtype=float),
+        )
 
         return Measurement(
             scan_nr=scan_nr,
             time=scan_time,
-            d_p=d_p,
-            delta_n=np.array(rows["dCn_inv_diff"], dtype=float),
-            delta_d_p=d_upper - d_lower,
-            delta_log_d_p=delta_log_d_p,
-            bin_boundaries=bin_boundaries,
+            axis=axis,
+            distributions={Quantity.NUMBER: number},
             other={"comment": params[2].strip()},
         )

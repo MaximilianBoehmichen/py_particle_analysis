@@ -17,6 +17,8 @@ Storage units:
     ===========  ============
 """
 
+from __future__ import annotations
+
 from enum import StrEnum
 
 from pypana.utils.debug import Debuggable
@@ -30,18 +32,19 @@ class Quantity(Debuggable, StrEnum):
     VOLUME = "V"
 
     @classmethod
-    def _missing_(cls, value: object) -> "Quantity | None":
+    def _missing_(cls, value: object) -> Quantity:
         """Case-insensitive lookup of symbols and full names."""
-        if not isinstance(value, str):
-            return None
+        if isinstance(value, str):
+            member = {
+                "n": cls.NUMBER,
+                "s": cls.SURFACE,
+                "v": cls.VOLUME,
+            }.get(value.strip().lower())
 
-        aliases = {
-            "n": cls.NUMBER,
-            "s": cls.SURFACE,
-            "v": cls.VOLUME,
-        }
+            if member is not None:
+                return member
 
-        return aliases.get(value.strip().lower())
+        raise ValueError(f"{value!r} is not a valid {cls.__name__}!")
 
     @property
     def full_name(self) -> str:

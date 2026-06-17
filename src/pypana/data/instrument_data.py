@@ -11,26 +11,21 @@ from typing import Annotated, Any, Literal, Self, overload
 
 import numpy as np
 import pandas as pd
-import plotly.graph_objects as go
 from matplotlib.ticker import Formatter
 from pydantic import BaseModel, Field
 from rich import inspect
 
 from pypana.console import console
 from pypana.data.collection_efficiency import CollectionEfficiency
+from pypana.data.defs import DataTypeLike
 from pypana.data.exceptions.invalid_index_error import InvalidIndexError
-from pypana.data._measurement import Measurement
+from pypana.data.measurement import Measurement
 from pypana.data.utils import get_xlims, is_full_rectangular_matrix
 from pypana.exceptions.incompatible_argument_error import IncompatibleArgumentError
 from pypana.plots.histograms.hist_matrix import plot_hist_matrix
-from pypana.plots.histograms.hist_single import (
-    plot_hist_single_matplotlib,
-    plot_hist_single_plotly,
-)
 from pypana.plots.scatter.collection_efficiency import plot_collection_efficiency
 from pypana.plots.themes import BaseTheme
 from pypana.utils.debug import Debuggable
-from pypana.utils.measurement_data_type import MeasurementDataType
 
 
 class InstrumentData(BaseModel, Debuggable):
@@ -298,77 +293,10 @@ class InstrumentData(BaseModel, Debuggable):
         """
         return self.mapply(lambda m: m.cut(d))
 
-    def plot_histogram_single(
-        self,
-        measurement: int,
-        *,
-        data_type: MeasurementDataType,
-        theme: type[BaseTheme] | None = None,
-        xscale: Literal["log"] = "log",
-        yscale: Literal["linear", "log"] = "linear",
-        xlim: tuple[float, float] | None = None,
-        grid: bool = False,
-        pmf: bool = False,
-        save_as: Path | None = None,
-        additional: Literal["cdf", "fit_cdf", "fit_pdf"] | None = None,
-        backend: Literal["matplotlib", "plotly"] = "plotly",
-        **kwargs: object,
-    ) -> None | go.Figure:
-        """Plots the histogram of a single measurement selected.
-
-        Args:
-            measurement: The single measurement to display.
-            data_type: The data type to display. ``dN/dlogdp`` or ``dN``.
-            theme: The theme for the plot. Defaults to ``settings.THEME``.
-            xscale: The scaling of the x-axis.
-            yscale: The scaling of the y-axis. Defaults to ``linear``.
-            xlim: The range on the x-axis to display.
-            grid: Whether to show grid lines.
-            pmf: Whether to show the probability mass function instead of original values.
-            save_as: Path where to store the output image. Defaults to no output.
-            additional: Additional function to display. ``cdf``, ``fit_cdf``, or ``fit_pdf``. Defaults to None.
-            backend: The backend to use to plot the histogram. Defaults to ``matplotlib``.
-            kwargs: Additional Keyword Arguments for the backend.
-        """
-        if measurement not in self.measurements:
-            raise InvalidIndexError(
-                message="Invalid scan number.", invalid_indices=[measurement]
-            )
-
-        if backend == "matplotlib":
-            plot_hist_single_matplotlib(
-                self.measurements[measurement],
-                data_type=data_type,
-                theme=theme,
-                xscale=xscale,
-                yscale=yscale,
-                xlim=xlim,
-                grid=grid,
-                pmf=pmf,
-                save_as=save_as,
-                additional=additional,
-                **kwargs,
-            )
-            return None
-        else:
-            return plot_hist_single_plotly(
-                self.measurements[measurement],
-                data_type=data_type,
-                theme=theme,
-                xscale=xscale,
-                yscale=yscale,
-                xlim=xlim,
-                grid=grid,
-                pmf=pmf,
-                save_as=save_as,
-                additional=additional,
-                **kwargs,
-            )
-
     def histogram(
         self,
         m: int | tuple[int, ...] | list[list[int | tuple[int, ...]]],
-        data_type: MeasurementDataType,
+        data_type: DataTypeLike,
         *,
         theme: BaseTheme | None = None,
         hist_type: Literal["bar", "stairs", "both"] = "bar",
@@ -422,7 +350,7 @@ class InstrumentData(BaseModel, Debuggable):
         Args:
             m (int | list[list[int]]): The measurement(s) to plot the histogram for. For a grid, the
                 measurements are given row-major like numpy. Has to be a full rectangular matrix.
-            data_type (MeasurementDataType): The data type to plot. ``dN/dlogdp`` or ``dN``.
+            data_type (DataTypeLike): The data type to plot, e.g. ``dN/dlogdp`` or ``dN``.
             theme (BaseTheme): The theme for the plot. Defaults to ``settings.THEME``.
             hist_type (str): What histogram type to display. "bar" plots a standard bar histogram,
                 "stairs" plots the outlines of the histogram, and "both" plots both together.
@@ -728,8 +656,8 @@ class InstrumentData(BaseModel, Debuggable):
 
         ups, downs = scan_nrs[0::2], scan_nrs[1::2]
 
-        n_ups = np.array([float(self.measurements[s].n_total) for s in ups])
-        n_downs = np.array([float(self.measurements[s].n_total) for s in downs])
+        n_ups = np.array([float(self.measurements[s].total) for s in ups])
+        n_downs = np.array([float(self.measurements[s].total) for s in downs])
         if np.any(n_ups == 0):
             raise ValueError(
                 "Upstream measurement has zero total concentration; η is undefined."

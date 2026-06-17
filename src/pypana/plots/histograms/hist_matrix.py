@@ -14,10 +14,10 @@ from matplotlib.patches import StepPatch
 from matplotlib.ticker import Formatter
 
 from pypana.config import settings
-from pypana.data._measurement import FloatArray, Measurement
+from pypana.data.defs import DataType, DataTypeLike, FloatArray, Normalization
+from pypana.data.measurement import Measurement
 from pypana.plots.themes import BaseTheme
 from pypana.plots.utils import coerce_formatter, linear_sci_formatter, split_kwargs
-from pypana.utils.measurement_data_type import MeasurementDataType
 
 STANDARD_HIST_SINGLE_KWARGS: dict[str, Any] = {
     "legend": "lower right",
@@ -49,7 +49,7 @@ These parameters may change with newer versions of pypana.
 
 def plot_hist_matrix(  # pragma: no cover # noqa: PLR0912, PLR0915
     m: list[list[tuple[Measurement, ...]]],
-    data_type: MeasurementDataType,
+    data_type: DataTypeLike,
     *,
     theme: BaseTheme | None = None,
     hist_type: Literal["bar", "stairs", "both"] = "bar",
@@ -102,7 +102,7 @@ def plot_hist_matrix(  # pragma: no cover # noqa: PLR0912, PLR0915
     Args:
         m (list[list[Measurement]]): The measurement grid. The measurements are given row-major like numpy.
             Has to be a full rectangular matrix.
-        data_type (MeasurementDataType): The data type to plot. ``dN/dlogdp`` or ``dN``.
+        data_type (DataTypeLike): The data type to plot, e.g. ``dN/dlogdp`` or ``dN``.
         theme (BaseTheme): The theme for the plot. Defaults to ``settings.THEME``.
         hist_type (str): What histogram type to display. "bar" plots a standard bar histogram,
             "stairs" plots the outlines of the histogram, and "both" plots both together.
@@ -128,6 +128,7 @@ def plot_hist_matrix(  # pragma: no cover # noqa: PLR0912, PLR0915
     _rows = len(m)
     _cols = len(m[0])
     _theme = theme or settings.THEME
+    requested = DataType.parse(data_type)
 
     _bar_kwargs, _grid_kwargs, _legend_kwargs, _secondary_kwargs, _stairs_kwargs = (
         split_kwargs("bar_", "grid_", "legend_", "secondary_", "stairs_", **kwargs)
@@ -162,11 +163,7 @@ def plot_hist_matrix(  # pragma: no cover # noqa: PLR0912, PLR0915
             _m_tuple: tuple[Measurement, ...] = m[r][c]
 
             for _m in _m_tuple:
-                _data = (
-                    _m.delta_n_dlog_dp.copy()
-                    if data_type == MeasurementDataType.dndlogdp
-                    else _m.delta_n.copy()
-                )
+                _data = _m[requested].copy()
                 _bar_kwargs["label"] = _resolve_label(
                     kwargs.get("bar_label"), _m, f"Measurement {_m.scan_nr}"
                 )
@@ -231,7 +228,7 @@ def plot_hist_matrix(  # pragma: no cover # noqa: PLR0912, PLR0915
 
             _format_ax(
                 ax,
-                data_type,
+                requested,
                 pmf,
                 xlabel,
                 xlim,
@@ -281,7 +278,7 @@ def plot_hist_matrix(  # pragma: no cover # noqa: PLR0912, PLR0915
 
 def _format_ax(  # pragma: no cover
     ax: Axes,
-    data_type: MeasurementDataType,
+    data_type: DataType,
     pmf: bool,
     xlabel: str | None,
     xlim: tuple[float, float],
@@ -383,19 +380,15 @@ def _get_default_xlabel() -> str:  # pragma: no cover
     return "Particle Diameter"
 
 
-def _get_default_ylabel(
-    data_type: MeasurementDataType, pmf: bool
-) -> str:  # pragma: no cover
+def _get_default_ylabel(data_type: DataType, pmf: bool) -> str:  # pragma: no cover
     """Gets the default ylabel."""
-    suffix = ", PMF" if pmf else ", in cm⁻³"
+    suffix = ", PMF" if pmf else f", in {data_type.base_unit}"
+    symbol = data_type.quantity.value
 
-    if data_type == MeasurementDataType.dn:
-        return f"Number Concentration\nΔN{suffix}"
+    if data_type.normalization is Normalization.DLOG_DP:
+        return f"Normalized Concentration\nΔ{symbol}/ΔlogDₚ{suffix}"
 
-    if data_type == MeasurementDataType.dndlogdp:
-        return f"Normalized Concentration\nΔN/ΔlogDₚ{suffix}"
-
-    return ""
+    return f"{data_type.quantity.full_name} Concentration\nΔ{symbol}{suffix}"
 
 
 def _deduplicate_handles_labels(handles: list, labels: list) -> tuple[list, list]:
