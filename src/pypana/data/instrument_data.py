@@ -370,7 +370,9 @@ class InstrumentData(BaseModel, Debuggable):
         *,
         theme: BaseTheme | None = None,
         hist_type: Literal["bar", "stairs", "both"] = "bar",
-        secondary: Literal["cdf", "fit_cdf", "fit_pdf"] | None = None,
+        secondary: Literal["cdf", "fit_cdf", "fit_pdf"]
+        | Callable[[FloatArray], FloatArray]
+        | None = None,
         save_as: str | None = None,
         legend: Literal[
             "best",
@@ -388,9 +390,10 @@ class InstrumentData(BaseModel, Debuggable):
             "column",
         ]
         | None = "best",
+        transforms: Callable[[FloatArray], FloatArray] = lambda x: x,
         pmf: bool = False,
         spines_invisible: list[Literal["left", "right", "top", "bottom"]] | None = None,
-        title: str | None = None,
+        title: str | None = "",
         xlabel: str | None = None,
         xlim: tuple[float, float] | None = None,
         xmajor_formatter: Formatter | str | None = None,
@@ -413,7 +416,8 @@ class InstrumentData(BaseModel, Debuggable):
             - ``grid_`` for the background grid (only visible, if grid_visible=True in theme),
             - ``legend_`` for the legend,
             - ``secondary_`` for the secondary line plot,
-            - ``stairs_`` for the stairs plot.
+            - ``stairs_`` for the stairs plot,
+            - ``save_`` for the matplotlib fig.savefig().
 
             For matplotlib kwargs, please consult the matplotlib documentation: https://matplotlib.org/stable/ .
 
@@ -425,12 +429,14 @@ class InstrumentData(BaseModel, Debuggable):
             hist_type (str): What histogram type to display. "bar" plots a standard bar histogram,
                 "stairs" plots the outlines of the histogram, and "both" plots both together.
                 Defaults to ``"bar"``.
-            secondary (str): The additional function to plot.
+            secondary (str | Callable[[Measurement] | Measurement]): The additional function to plot.
                 "fit_cdf" and "fit_pdf" require the measurement to already be fitted previously. Both currently raise
-                NotImplementedError. Defaults to ``None``.
+                NotImplementedError. Or give a custom function that computes the secondary data. Defaults to ``None``.
             save_as (str | None): The path where to save the figure. Defaults to ``None`` which does not save.
             legend (bool): Whether to show the legend. Defaults to ``True``.
             pmf (bool): Whether to plot the measurement as probability mass function. Defaults to ``False``.
+            transforms (Callable[[FloatArray], FloatArray]): A transform to apply to the plotted data of m.
+                Defaults to the identity function.
             spines_invisible (list): The spines not to show. Defaults to ``None``, in which case all are plotted.
             title (str | None): The title of the plot. Defaults to ``None`` and uses an adaptive title.
             xlabel (str | None): The x-axis label of the plot. Defaults to ``None`` and uses an adaptive title.
@@ -471,6 +477,7 @@ class InstrumentData(BaseModel, Debuggable):
                 Defaults to the matplotlib default.
             legend_loc (str): The location of the matplotlib legend. Can only be specified when legend=True.
                 Defaults to the matplotlib default.
+            legend_ncol (int): The number of columns in the legend. Has different defaults.
 
             secondary_color (str): The color of the line plot that shows the secondary function.
                 Can be either a hex code, e.g. "#000000" or from the color cycle, e.g. "C0". Can only be specified
@@ -484,6 +491,9 @@ class InstrumentData(BaseModel, Debuggable):
                 Can only be specified when secondary is not None. Defaults to the matplotlib default.
             secondary_linewidth (float): The linewidth of the line of the secondary function. Can only be specified
                 when secondary is not None. Defaults to the matplotlib default.
+            secondary_yformatter (Formatter | str): The matplotlib ticker.Formatter for the secondary y-axis.
+            secondary_ylabel (str): The ylabel to show for the axis. Can only be specified when secondary is not None.
+                Defaults to an empty string.
 
             stairs_color: The color of the stairs plot. Can be either a hex code, e.g. "#000000"
                 or from the color cycle, e.g. "C0". Can only be specified when hist_type="stairs" or "both".
@@ -553,6 +563,7 @@ class InstrumentData(BaseModel, Debuggable):
             secondary=secondary,
             save_as=save_as,
             legend=legend,
+            transforms=transforms,
             pmf=pmf,
             spines_invisible=spines_invisible,
             title=title,
@@ -571,6 +582,8 @@ class InstrumentData(BaseModel, Debuggable):
         self,
         m: tuple[int, int] | range | slice | None = None,
         *,
+        dp_type: Quantity = Quantity.NUMBER,
+        diameter: Literal["median", "geometric_mean"] = "geometric_mean",
         fit: Literal["sigmoid", "gompertz"] | None = "sigmoid",
         theme: type[BaseTheme] | None = None,
         save_as: str | None = None,
@@ -622,6 +635,8 @@ class InstrumentData(BaseModel, Debuggable):
                 them consecutively. A ``range`` or ``slice`` selects consecutive
                 measurements by *position* in ``self.measurements``. All selections must
                 yield an even, ≥ 2 count. Use ``permute()`` beforehand to arrange them.
+            dp_type (Quantity): The quantity to analyze. Defaults to Quantity.NUMBER.
+            diameter (str): Which diameter to use. Defaults to ``geometric_mean``.
             fit (str | None): The fit to overlay on the scatter. ``"sigmoid"`` extracts the
                 cut diameter ``d_50``. ``"gompertz"`` allows non-0/100% asymptotes. ``None``
                 plots only the data points. Defaults to ``"sigmoid"``.
@@ -733,8 +748,14 @@ class InstrumentData(BaseModel, Debuggable):
                 "Upstream measurement has zero total concentration; η is undefined."
             )
 
+        raw_measurements = [
+            self.measurements[s].distributions[dp_type].median
+            if diameter == "median"
+            else self.measurements[s].distributions[dp_type].geo_mean
+            for s in ups
+        ]
         ce = CollectionEfficiency(
-            d_p=np.array([self.measurements[s].geo_mean for s in ups], dtype=float),
+            d_p=np.array(raw_measurements, dtype=float),
             eta=1.0 - n_downs / n_ups,
             upstream_scan_nrs=ups,
             downstream_scan_nrs=downs,

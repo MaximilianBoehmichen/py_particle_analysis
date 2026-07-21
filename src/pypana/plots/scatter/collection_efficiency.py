@@ -27,7 +27,9 @@ def _default_fit_label(ce: CollectionEfficiency) -> str:  # pragma: no cover
 
     try:
         if ce.fit_r_squared is not None:
-            return f"{ce.fit_model} fit (d₅₀ = {ce.d_50:.2g}, R² = {ce.fit_r_squared:.3f})"
+            return (
+                f"{ce.fit_model} fit (d₅₀ = {ce.d_50:.3g}, R² = {ce.fit_r_squared:.3f})"
+            )
 
     except ValueError:
         pass
