@@ -47,15 +47,6 @@ jobs:
         env:
           GITHUB_REF_NAME: ${{ github.ref_name }}
 
-      - name: Built version must match the tag
-        run: |
-          built=$(python -m hatch version 2>/dev/null || python -c "import pypana,importlib.metadata as m;                    
-          print(m.version('pypana'))")
-          want="${GITHUB_REF_NAME#v}"
-          [ "$built" = "$want" ] || { echo "::error::built $built != tag $want"; exit 1; }
-        env:
-          GITHUB_REF_NAME: ${{ github.ref_name }}
-
       - name: Check event matches version
         run: |
           if [ "$EVENT" = "release" ] && [ "$PRERELEASE" = "true" ]; then
@@ -71,6 +62,14 @@ jobs:
       - run: pip install build
       - run: python -m build
       - run: pipx run twine check --strict dist/*
+
+      - name: Built version must match the tag
+        run: |
+          built=$(ls dist/*.whl | sed -E 's#.*/pypana-([^-]+)-.*#\1#')                                                                                                                                                                                    
+          want="${GITHUB_REF_NAME#v}"                                                                                                                                                                                                                     
+          [ "$built" = "$want" ] || { echo "::error::built $built != tag $want"; exit 1; }
+        env:
+          GITHUB_REF_NAME: ${{ github.ref_name }}
 
       - name: Verify no local version identifier
         run: |
