@@ -54,7 +54,7 @@ The :class:`~pypana.data.instrument_data.InstrumentData` is a wrapper around the
 ``measurements`` dictionary. A single scan is reached by its key, the count is obtained with
 ``len``, and the dictionary itself can be iterated directly.
 
-However, there is no guarantee for a certain ``scan_nr`` to exist. Some instruments, where the number is explicitly given, the ``0`` scan may be missing. To get a continuous list of scans, see the :ref:`Selecting and reordering` section.
+However, there is no guarantee for a certain ``scan_nr`` to exist. Some instruments where the number is explicitly given, the ``0`` scan may be missing. To get a continuous list of scans, see the :ref:`Selecting and reordering` section.
 
 .. code-block:: python
 
@@ -81,7 +81,7 @@ Selecting and reordering
 A subset can be carved out with a slice or with
 :meth:`~pypana.data.instrument_data.InstrumentData.keep_measurements`, whereas the order is changed
 and unwanted scans are dropped with :meth:`~pypana.data.instrument_data.InstrumentData.permute`.
-The keys are made contiguous again by :meth:`~pypana.data.instrument_data.InstrumentData.reindex`.
+The keys are made contiguous again by :meth:`~pypana.data.instrument_data.InstrumentData.reindex`, which can also be used to establish ``0``-based indexing when the loaded data assumes ``1``-based indexing.
 
 .. code-block:: python
 

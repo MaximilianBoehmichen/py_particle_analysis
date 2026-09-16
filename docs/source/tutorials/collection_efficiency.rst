@@ -198,6 +198,15 @@ grid, and ``legend_`` for the legend. Labels accept a lambda that receives the
 
     The same curve with a custom title, markers, and fit label.
 
+
+Another example collection efficiency plot looks like this:
+
+.. figure:: /_static/collection_efficiency/ce_example.svg
+    :alt: Another example of a collection efficiency plot
+    :width: 100%
+
+    Plotted from another project.
+
 Conclusion
 ----------
 
