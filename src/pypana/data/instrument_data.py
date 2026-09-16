@@ -14,7 +14,9 @@ import pandas as pd
 from matplotlib.ticker import Formatter
 from pydantic import BaseModel, Field
 from rich import inspect
+from tqdm import tqdm
 
+from pypana.analysis.lognormal import LogNormalFit, LogNormalFitType
 from pypana.console import console
 from pypana.data.collection_efficiency import CollectionEfficiency
 from pypana.data.defs import DataType, DataTypeLike, FloatArray, Quantity
@@ -23,6 +25,7 @@ from pypana.data.exceptions.invalid_index_error import InvalidIndexError
 from pypana.data.measurement import Measurement
 from pypana.data.utils import get_xlims, is_full_rectangular_matrix
 from pypana.exceptions.incompatible_argument_error import IncompatibleArgumentError
+from pypana.pana_error import ParticleAnalysisError
 from pypana.plots.histograms.hist_matrix import plot_hist_matrix
 from pypana.plots.scatter.collection_efficiency import plot_collection_efficiency
 from pypana.plots.themes import BaseTheme
@@ -362,6 +365,53 @@ class InstrumentData(BaseModel, Debuggable):
             This operation is inplace.
         """
         return self.mapply(lambda m: m.cut(d))
+
+    def fit(
+            self,
+            *,
+            fit_type: LogNormalFitType | Literal["outline"] = "mode",
+            modes: int | None = 1,
+            loss: Literal["linear", "soft_l1", "huber", "cauchy", "arctan"] = "linear",
+            outlier_scale: float = 0.05,
+    ) -> LogNormalFit | None:
+        """Fits the specified function to the all :class:`pypana.data.size_distribution.SizeDistribution`
+        of the Measurement.
+
+        The model is fitted against the contents of each bin.
+        Bins holding ``NaN`` are treated as missing and are ignored.
+
+        Args:
+            fit_type: ``"mode"`` for a single lognormal mode,
+                ``"mixture"`` for multiple modes for each SizeDistribution. ``"outline"`` treats the peak of each
+                :class:`pypana.data.size_distribution.SizeDistribution` as one data point to fit an outline lognormal
+                over multiple SizeDistributions together.
+            modes: Number of modes to fit or autodetect with BIC. Only used for ``"mixture"``. For vastly different measurement results,
+                it is advised to automatically detect the number of modes with ``modes=None``.
+            loss: The residual loss function used for fitting. If ``"linear"`` becomes unstable, try ``"soft_l1"``.
+            outlier_scale: Residual relative magnitude at which a bin is treated as outlier.
+                Ignored for ``loss="linear"``.
+
+        Returns:
+            The fit if ``fit_type="outline"`` was selected.
+
+        Raises:
+            ParticleAnalysisError: If no :class:`pypana.data.measurement.Measurement` is present.
+        """
+        if fit_type == "outline":
+            pass
+
+        if fit_type in ["mode", "mixture"]:
+            for measurement in tqdm(self.measurements.values()):
+                try:
+                    measurement.fit(
+                        fit_type=fit_type,
+                        modes=modes,
+                        loss=loss,
+                        outlier_scale=outlier_scale,
+                    )
+                except ParticleAnalysisError:
+                    pass
+
 
     def histogram(
         self,

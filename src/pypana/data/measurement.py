@@ -6,15 +6,17 @@ This data can then be used for further unified analysis.
 
 from collections.abc import Hashable
 from datetime import datetime
-from typing import Any, Self, overload
+from typing import Any, Literal, Self, overload
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from pypana.analysis.lognormal import LogNormalFit, LogNormalFitType
 from pypana.data.bin_axis import BinAxis, DiameterTypes
 from pypana.data.defs import DataType, DataTypeLike, FloatArray, Quantity
 from pypana.data.defs.data_type_str import DataTypeStr
 from pypana.data.size_distribution import SizeDistribution
 from pypana.data.time_series import TimeSeries
+from pypana.pana_error import ParticleAnalysisError
 from pypana.utils.debug import Debuggable
 
 
@@ -247,6 +249,50 @@ class Measurement(BaseModel, Debuggable):
             dist.cut(d)
 
         return self
+
+    def fit(
+        self,
+        *,
+        fit_type: LogNormalFitType = "mode",
+        modes: int | None = 1,
+        loss: Literal["linear", "soft_l1", "huber", "cauchy", "arctan"] = "linear",
+        outlier_scale: float = 0.05,
+    ) -> LogNormalFit | None:
+        """Fits the specified function to the all :class:`pypana.data.size_distribution.SizeDistribution`
+        of the Measurement.
+
+        The model is fitted against the contents of each bin.
+        Bins holding ``NaN`` are treated as missing and are ignored.
+
+        Args:
+            fit_type: ``"mode"`` for a single lognormal mode, ``"mixture"`` for multiple modes.
+            modes: Number of modes to fit or autodetect with BIC. Only used for ``"mixture"``.
+            loss: The residual loss function used for fitting. If ``"linear"`` becomes unstable, try ``"soft_l1"``.
+            outlier_scale: Residual relative magnitude at which a bin is treated as outlier.
+                Ignored for ``loss="linear"``.
+
+        Returns:
+            The fit if only one :class:`pypana.data.size_distribution.SizeDistribution` is present.
+
+        Raises:
+            ParticleAnalysisError: If no SizeDistribution is present.
+        """
+        fits: list[LogNormalFit] = []
+
+        for distribution in self.distributions.values():
+            fits.append(
+                distribution.fit(
+                    fit_type=fit_type,
+                    modes=modes,
+                    loss=loss,
+                    outlier_scale=outlier_scale,
+                )
+            )
+
+        if len(fits) == 0:
+            raise ParticleAnalysisError()
+
+        return fits[0] if len(fits) == 1 else None
 
     @property
     def quantities(self) -> tuple[Quantity, ...]:

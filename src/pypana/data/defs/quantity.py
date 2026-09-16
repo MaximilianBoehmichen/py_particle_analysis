@@ -1,20 +1,19 @@
-"""The Quantity; which physical weighting a value array contains.
+"""The Quantity; which physical weighting (moment) a value array contains.
 
-The member value is the notation prefix, so canonical data type strings ca be built as ``f"d{quantity}{normalization}"``
+The member value is the notation prefix, so canonical data type strings ca be built as ``f"d{moment}{normalization}"``
 
 Storage units:
     All pypana arrays hold values in the canonical unit of their quantity,
     independent of what the instrument reported. Readers convert on import, the plot code scales this accordingly.
     Particle diameters are always stored in meters.
 
-    ===========  ============
-    Quantity     Stored unit
-    ===========  ============
-    NUMBER       1/cm³
-    SURFACE      m²/cm³
-    VOLUME       m³/cm³
-    MASS         µg/m³
-    ===========  ============
+    ===========  ============ ===========
+    Quantity     Stored unit  Moment
+    ===========  ============ ===========
+    NUMBER       1/cm³        0
+    SURFACE      m²/cm³       2
+    VOLUME       m³/cm³       3
+    ===========  ============ ===========
 """
 
 from __future__ import annotations
@@ -25,7 +24,7 @@ from pypana.utils.debug import Debuggable
 
 
 class Quantity(Debuggable, StrEnum):
-    """The physical weighting of a measured aerosol concentration."""
+    """The physical weighting (moment) of a measured aerosol concentration."""
 
     NUMBER = "N"
     SURFACE = "S"
