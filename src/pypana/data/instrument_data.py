@@ -7,16 +7,17 @@ import copy
 from collections.abc import Callable, Hashable
 from pathlib import Path
 from textwrap import dedent
-from typing import Annotated, Any, Literal, Self, overload
+from typing import Annotated, Any, ClassVar, Literal, Self, overload
 
 import numpy as np
 import pandas as pd
 from matplotlib.ticker import Formatter
 from pydantic import BaseModel, Field
 from rich import inspect
+from scipy.optimize import curve_fit
 from tqdm import tqdm
 
-from pypana.analysis.lognormal import LogNormalFit, LogNormalFitType
+from pypana.analysis.lognormal import LogNormalFit, LogNormalFitType, ModeLognormalFit
 from pypana.console import console
 from pypana.data.collection_efficiency import CollectionEfficiency
 from pypana.data.defs import DataType, DataTypeLike, FloatArray, Quantity
@@ -56,6 +57,8 @@ class InstrumentData(BaseModel, Debuggable):
         default_factory=dict,
         description="Other info about the measurements that might be required.",
     )
+
+    MIN_OUTLINE_POINTS: ClassVar[int] = 5
 
     def __len__(self) -> int:
         return len(self.measurements)
@@ -384,7 +387,7 @@ class InstrumentData(BaseModel, Debuggable):
             fit_type: ``"mode"`` for a single lognormal mode,
                 ``"mixture"`` for multiple modes for each SizeDistribution. ``"outline"`` treats the peak of each
                 :class:`pypana.data.size_distribution.SizeDistribution` as one data point to fit an outline lognormal
-                over multiple SizeDistributions together.
+                over multiple SizeDistributions together. Failed fits are ignored in this case.
             modes: Number of modes to fit or autodetect with BIC. Only used for ``"mixture"``. For vastly different measurement results,
                 it is advised to automatically detect the number of modes with ``modes=None``.
             loss: The residual loss function used for fitting. If ``"linear"`` becomes unstable, try ``"soft_l1"``.
@@ -398,7 +401,62 @@ class InstrumentData(BaseModel, Debuggable):
             ParticleAnalysisError: If no :class:`pypana.data.measurement.Measurement` is present.
         """
         if fit_type == "outline":
-            pass
+            self.fit(
+                fit_type="mode",
+                loss=loss,
+                outlier_scale=outlier_scale,
+            )
+
+            peaks: list[tuple[np.floating, np.floating]] = []
+
+            for m in self.measurements.values():
+                if len(m.distributions) > 1:
+                    raise IncompatibleArgumentError("Outline may only depend on one type of quantity")
+
+                for distribution in m.distributions.values():
+                    if (
+                        distribution.distribution_fit is not None
+                        and isinstance(distribution.distribution_fit, ModeLognormalFit)
+                    ):
+                        peaks.append(distribution.distribution_fit.peak)
+
+            if len(peaks) < self.MIN_OUTLINE_POINTS:
+                raise ParticleAnalysisError("Not enough supports for outline!")
+
+            d_p, heights = np.array(peaks).T
+
+            def outline(
+                x: FloatArray,
+                amplitude: np.floating,
+                sigma: np.floating,
+                mu: np.floating,
+            ) -> FloatArray:
+                return np.asarray(
+                    amplitude * np.exp(-((np.log(x) - mu) ** 2) / (2 * sigma ** 2)),
+                    dtype=float,
+                )
+
+            popt, _ = curve_fit(
+                outline,
+                d_p,
+                heights,
+                p0=[
+                    heights.max(),
+                    np.log(1.25),
+                    float(np.log(d_p[int(np.argmax(heights))])),
+                ],
+                bounds=([0.0, 1e-6, -np.inf], [np.inf, np.inf, np.inf]),
+                loss=loss,
+                f_scale=outlier_scale * float(heights.max()),
+                maxfev=50_000,
+            )
+            amplitude, sigma, mu = popt
+
+            return ModeLognormalFit(
+                n=amplitude * sigma * np.sqrt(2 * np.pi) / np.log(10),
+                sigma=sigma,
+                mu=mu,
+            )
 
         if fit_type in ["mode", "mixture"]:
             for measurement in tqdm(self.measurements.values()):
@@ -409,9 +467,12 @@ class InstrumentData(BaseModel, Debuggable):
                         loss=loss,
                         outlier_scale=outlier_scale,
                     )
-                except ParticleAnalysisError:
+                except (ParticleAnalysisError, RuntimeError):
                     pass
 
+            return None
+
+        raise ParticleAnalysisError
 
     def histogram(
         self,

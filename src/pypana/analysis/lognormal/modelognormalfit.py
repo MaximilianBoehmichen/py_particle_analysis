@@ -5,7 +5,7 @@ from scipy.stats import lognorm
 from pypana.analysis.lognormal.fit import Fit
 
 
-class ModeLogNormalFit(Fit):
+class ModeLognormalFit(Fit):
     """A lognormal fit. """
 
     _n: np.floating
@@ -74,3 +74,11 @@ class ModeLogNormalFit(Fit):
             f(x)
         """
         return self._n * lognorm.pdf(x, s=self._sigma, loc=0, scale=np.exp(self._mu))
+
+    @property
+    def peak(self) -> tuple[np.floating, np.floating]:
+        r"""d_p and delta_dlogdp of this mode's maximum"""
+        d_p = np.exp(self._mu)
+
+        return d_p, np.log(10) * d_p * self.pdf(d_p)
+

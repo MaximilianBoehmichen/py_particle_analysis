@@ -13,7 +13,7 @@ from pypana.analysis.lognormal import (
     LogNormalFit,
     LogNormalFitType,
     MixtureLognormalFit,
-    ModeLogNormalFit,
+    ModeLognormalFit,
 )
 from pypana.console import console
 from pypana.data.bin_axis import BinAxis
@@ -183,7 +183,7 @@ class SizeDistribution(BaseModel, Debuggable):
         d_upper = self.axis.d_upper[measured]
         values = self.delta[measured]
 
-        def binned(_: FloatArray, *params: np.floating) -> FloatArray:
+        def binned(_: FloatArray | None, *params: np.floating) -> FloatArray:
             summed = np.zeros(d_lower.size)
 
             for i in range(modes):
@@ -219,7 +219,7 @@ class SizeDistribution(BaseModel, Debuggable):
         )
 
         _fit = MixtureLognormalFit([
-            ModeLogNormalFit(n=popt[3 * i], sigma=popt[3 * i + 1], mu=popt[3 * i + 2])
+            ModeLognormalFit(n=popt[3 * i], sigma=popt[3 * i + 1], mu=popt[3 * i + 2])
             for i in range(modes)]
         )
 
@@ -229,7 +229,7 @@ class SizeDistribution(BaseModel, Debuggable):
     def _bic(residuals: FloatArray, modes: int) -> float:
         """BIC for the least squares fit."""
         n = residuals.size
-        chi_squared = np.sum(residuals**2)
+        chi_squared = float(np.sum(residuals**2))
         log_likelihood = -n / 2 * (np.log(2 * np.pi * chi_squared / n) + 1)
 
         return (3 * modes + 1) * np.log(n) - 2 * log_likelihood
@@ -405,7 +405,7 @@ class SizeDistribution(BaseModel, Debuggable):
                 loss=loss,
                 f_scale=outlier_scale * float(np.nanmax(self.delta))
             )
-            fit =  ModeLogNormalFit(n=popt[0], sigma=popt[1], mu=popt[2])
+            fit = ModeLognormalFit(n=popt[0], sigma=popt[1], mu=popt[2])
             self.distribution_fit = fit
 
             return fit

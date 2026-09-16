@@ -1,19 +1,19 @@
 import numpy as np
 
 from pypana.analysis.lognormal.fit import Fit
-from pypana.analysis.lognormal.modelognormalfit import ModeLogNormalFit
+from pypana.analysis.lognormal.modelognormalfit import ModeLognormalFit
 
 
 class MixtureLognormalFit(Fit):
     """A multi-lognormal fit."""
 
-    _fits: list[ModeLogNormalFit]
+    _fits: list[ModeLognormalFit]
 
-    def __init__(self, fits: list[ModeLogNormalFit]):
+    def __init__(self, fits: list[ModeLognormalFit]):
         """A multi-lognormal fit consisting of individual lognormal fits.
 
         Args:
-            fits (list[ModeLogNormalFit]): The lognormal fits.
+            fits (list[ModeLognormalFit]): The lognormal fits.
         """
         self._fits = fits
 
