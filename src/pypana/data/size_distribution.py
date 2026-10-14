@@ -83,7 +83,7 @@ class SizeDistribution(BaseModel, Debuggable):
 
     BIC_MARGIN_COEFFICIENT: ClassVar[float] = 2.2
     r"""Scales the minimum BIC improvement required per added mode.
-    
+
     The BIC difference between adjacent mode counts must exceed :math:`BIC_MARGIN_COEFFICIENT * \sqrt{n_\text{bins}}`.
     This magic number was found empirically and may change in the future.
     """
@@ -191,7 +191,7 @@ class SizeDistribution(BaseModel, Debuggable):
                 scale = np.exp(mu)
                 summed += n * (
                     lognorm.cdf(d_upper, s=sigma, loc=0, scale=scale)
-                    -lognorm.cdf(d_lower, s=sigma, loc=0, scale=scale)
+                    - lognorm.cdf(d_lower, s=sigma, loc=0, scale=scale)
                 )
 
             return np.asarray(summed, dtype=float)
@@ -218,9 +218,13 @@ class SizeDistribution(BaseModel, Debuggable):
             maxfev=50_000,
         )
 
-        _fit = MixtureLognormalFit([
-            ModeLognormalFit(n=popt[3 * i], sigma=popt[3 * i + 1], mu=popt[3 * i + 2])
-            for i in range(modes)]
+        _fit = MixtureLognormalFit(
+            [
+                ModeLognormalFit(
+                    n=popt[3 * i], sigma=popt[3 * i + 1], mu=popt[3 * i + 2]
+                )
+                for i in range(modes)
+            ]
         )
 
         return _fit, values - binned(None, *popt)
@@ -232,7 +236,7 @@ class SizeDistribution(BaseModel, Debuggable):
         chi_squared = float(np.sum(residuals**2))
         log_likelihood = -n / 2 * (np.log(2 * np.pi * chi_squared / n) + 1)
 
-        return (3 * modes + 1) * np.log(n) - 2 * log_likelihood
+        return float((3 * modes + 1) * np.log(n) - 2 * log_likelihood)
 
     @cached_property
     def delta(self) -> FloatArray:
@@ -388,7 +392,8 @@ class SizeDistribution(BaseModel, Debuggable):
                 scale = np.exp(mu)
 
                 return np.asarray(
-                    n * (
+                    n
+                    * (
                         lognorm.cdf(d_upper, s=sigma, loc=0, scale=scale)
                         - lognorm.cdf(d_lower, s=sigma, loc=0, scale=scale)
                     ),
@@ -401,42 +406,42 @@ class SizeDistribution(BaseModel, Debuggable):
                 self.delta[measured],
                 p0=[
                     self.total,
-                    max(np.log(self.geo_std_dev), 0.005),  # completely empty SizeDistribution: geo_std_dev = 0.0
-                    np.log(self.mode)
+                    max(
+                        np.log(self.geo_std_dev), 0.005
+                    ),  # completely empty SizeDistribution: geo_std_dev = 0.0
+                    np.log(self.mode),
                 ],
                 bounds=([0.0, 1e-6, -np.inf], [np.inf, np.inf, np.inf]),
                 loss=loss,
-                f_scale=outlier_scale * float(np.nanmax(self.delta))
+                f_scale=outlier_scale * float(np.nanmax(self.delta)),
             )
-            fit = ModeLognormalFit(n=popt[0], sigma=popt[1], mu=popt[2])
-            self.distribution_fit = fit
+            mode_fit = ModeLognormalFit(n=popt[0], sigma=popt[1], mu=popt[2])
+            self.distribution_fit = mode_fit
 
-            return fit
+            return mode_fit
 
         if fit_type == "mixture":
             if modes is not None:
-                fit, _ = self._fit_mixture(modes)
-                self.distribution_fit = fit
+                mixture_fit, _ = self._fit_mixture(modes)
+                self.distribution_fit = mixture_fit
 
-                return fit
+                return mixture_fit
 
             fits: dict[int, tuple[MixtureLognormalFit, float]] = {}
 
             for candidate in range(1, self.MAX_AUTO_FIT_MODES + 1):
                 try:
-                    fit, residuals = self._fit_mixture(candidate)
+                    mixture_fit, residuals = self._fit_mixture(candidate)
                 except RuntimeError:
                     continue
 
-                fits[candidate] = (fit, self._bic(residuals, candidate))
+                fits[candidate] = (mixture_fit, self._bic(residuals, candidate))
 
             if not fits:
                 raise ParticleAnalysisError("No mixture fit converged.")
 
             margin = self.BIC_MARGIN_COEFFICIENT * np.sqrt(
-                np.count_nonzero(
-                    np.isfinite(self.delta)
-                )
+                np.count_nonzero(np.isfinite(self.delta))
             )
             chosen = min(fits)
 

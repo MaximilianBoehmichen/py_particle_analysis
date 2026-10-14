@@ -258,8 +258,7 @@ class Measurement(BaseModel, Debuggable):
         loss: Literal["linear", "soft_l1", "huber", "cauchy", "arctan"] = "linear",
         outlier_scale: float = 0.05,
     ) -> LogNormalFit | None:
-        """Fits the specified function to the all :class:`pypana.data.size_distribution.SizeDistribution`
-        of the Measurement.
+        """Fits the function to the all :class:`pypana.data.size_distribution.SizeDistribution` of the Measurement.
 
         The model is fitted against the contents of each bin.
         Bins holding ``NaN`` are treated as missing and are ignored.

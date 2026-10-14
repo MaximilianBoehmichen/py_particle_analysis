@@ -14,7 +14,7 @@ from pypana.data.measurement import Measurement
 from pypana.data.size_distribution import SizeDistribution
 from pypana.readers.base_instrument_reader import BaseInstrumentReader
 from pypana.readers.base_reader import InputType
-from pypana.readers.exceptions.read_error import ReadError
+from pypana.readers.exceptions.read_error import ReaderNotImplementedError, ReadError
 
 _ENCODING = "iso-8859-1"
 _TABLE_HEADER_START = "Start Date"
@@ -83,8 +83,8 @@ def _build_bin_boundaries(
 
 
 def _decode_time(day_of_year: float, year: int) -> datetime:
-    """ACTRIS fractional day-of-year (1-based) + year -> datetime."""
-    return datetime(year, 1, 1) + timedelta(days=day_of_year - 1.0)
+    """ACTRIS fractional day-of-year (0-based) + year -> datetime."""
+    return datetime(year, 1, 1) + timedelta(days=day_of_year)
 
 
 def _read_actris_file(
@@ -133,9 +133,8 @@ def _read_actris_file(
             values = np.array(
                 [float(row.iloc[data_start + k]) for k in range(n_bins)], dtype=float
             )
-            values = np.where(
-                (values == _INVALID_VALUE) | np.isnan(values), 0.0, values
-            )
+            if np.any((values == _INVALID_VALUE) | np.isnan(values)):
+                raise ValueError("NaN or 999.0 in values.")
 
             number = SizeDistribution(
                 quantity=Quantity.NUMBER, axis=axis, delta_dlogdp=values
@@ -176,12 +175,7 @@ class TSISMPS3938ACTRISLevel0InstrumentReader(BaseInstrumentReader):
 
     def read(self) -> InstrumentData:
         """Read the ACTRIS Level 0 file into the pypana format."""
-        return _read_actris_file(
-            self._path,
-            self._device_name,
-            bin_count_index=10,
-            data_block_offset_bins=1,
-        )
+        raise ReaderNotImplementedError("Currently under development.")
 
 
 class TSISMPS3938ACTRISLevel1InstrumentReader(BaseInstrumentReader):

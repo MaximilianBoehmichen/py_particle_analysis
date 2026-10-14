@@ -7,6 +7,8 @@ from typing import Any
 
 from pypana.readers.exceptions.read_error import ReadError
 
+DELIMITERS = ("\t", ",", ";")
+
 
 def check_anchors_in_file(
     path: Path, anchors: list[str], *, encoding: str = "utf-8"
@@ -49,13 +51,18 @@ def check_anchors_in_file(
 
 
 def check_samples_in_integer_order_in_file(
-    path: Path, start_line: int, *, encoding: str = "utf-8"
+    path: Path,
+    start_line: int,
+    *,
+    delimiter: str = "\t",
+    encoding: str = "utf-8",
 ) -> bool:
     """Check whether samples are in numerical order to ensure temporal order.
 
     Args:
         path (Path): Path to the file to check.
         start_line (int): Start line to check.
+        delimiter (str): Delimiter separating the content.
         encoding (str, optional): Encoding of the file.
 
     Returns:
@@ -76,7 +83,7 @@ def check_samples_in_integer_order_in_file(
             if not cleaned_line:
                 continue
 
-            first_column = cleaned_line.split("\t")[0]
+            first_column = cleaned_line.split(delimiter)[0]
 
             if not first_column.isdigit():
                 raise ReadError(
@@ -108,3 +115,31 @@ def other_columns_to_dict(
         dict[str, str]: Dictionary of unused columns.
     """
     return {col: row[col] for col in columns if col in row}
+
+
+def detect_delimiter(
+    path: Path,
+    header_start: str = "Sample #",
+    *,
+    encoding: str = "utf-8",
+) -> str | None:
+    """Detect the delimiter from the character following the start of the table header.
+
+    Args:
+        path (Path): File to check.
+        header_start (str, optional): Start of the header line.
+        encoding (str, optional): Encoding of the file.
+
+    Returns:
+        The delimiter, None if unknown.
+    """
+    if not path.is_file():
+        return None
+
+    with Path.open(path, "r", encoding=encoding) as f:
+        for line in f:
+            if line.startswith(header_start):
+                delimiter = line[len(header_start) : len(header_start) + 1]
+                return delimiter if delimiter in DELIMITERS else None
+
+    return None

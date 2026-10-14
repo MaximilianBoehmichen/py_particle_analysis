@@ -1,12 +1,14 @@
+"""ModeLognormalFit class for a single lognormal fit."""
 
 import numpy as np
+from numpy.typing import ArrayLike, NDArray
 from scipy.stats import lognorm
 
 from pypana.analysis.lognormal.fit import Fit
 
 
 class ModeLognormalFit(Fit):
-    """A lognormal fit. """
+    """A lognormal fit."""
 
     _n: np.floating
     _sigma: np.floating
@@ -39,7 +41,7 @@ class ModeLognormalFit(Fit):
         """Log mean of this mode."""
         return self._mu
 
-    def cdf(self, x: np.floating) -> np.floating:
+    def cdf(self, x: ArrayLike) -> NDArray[np.float64]:
         r"""The scaled lognormal cumulative distribution function evaluated at x.
 
         .. math::
@@ -54,9 +56,12 @@ class ModeLognormalFit(Fit):
         Returns:
             F(x)
         """
-        return self._n * lognorm.cdf(x, s=self._sigma, loc=0, scale=np.exp(self._mu))
+        return np.asarray(
+            self._n * lognorm.cdf(x, s=self._sigma, loc=0, scale=np.exp(self._mu)),
+            dtype=float,
+        )
 
-    def pdf(self, x: np.floating) -> np.floating:
+    def pdf(self, x: ArrayLike) -> NDArray[np.float64]:
         r"""The lognormal probability density function evaluated at x.
 
         .. math::
@@ -73,12 +78,14 @@ class ModeLognormalFit(Fit):
         Returns:
             f(x)
         """
-        return self._n * lognorm.pdf(x, s=self._sigma, loc=0, scale=np.exp(self._mu))
+        return np.asarray(
+            self._n * lognorm.pdf(x, s=self._sigma, loc=0, scale=np.exp(self._mu)),
+            dtype=float,
+        )
 
     @property
     def peak(self) -> tuple[np.floating, np.floating]:
-        r"""d_p and delta_dlogdp of this mode's maximum"""
+        r"""d_p and delta_dlogdp of this mode's maximum."""
         d_p = np.exp(self._mu)
 
         return d_p, np.log(10) * d_p * self.pdf(d_p)
-

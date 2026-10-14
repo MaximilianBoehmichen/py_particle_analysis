@@ -72,7 +72,7 @@ The following table lists the currently supported readers. If a certain aerosol-
 | TSI EM 3068 | planned | -/- |
 | TSI LAS 3340A | ✅ | -/- |
 | TSI SMPS 3071 | ✅ | -/- |
-| TSI SMPS 3938 | ✅ | preliminary support for ACTRIS Level 0 and 1 |
+| TSI SMPS 3938 | ✅ | partial support for ACTRIS Level 0 and 1 |
 
 
 ## Contributing

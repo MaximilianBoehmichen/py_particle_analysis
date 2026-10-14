@@ -462,7 +462,9 @@ def _fit_values(
 
 
 def _secondary_curves(  # pragma: no cover # noqa: PLR0913
-    secondary: Literal["cdf", "fit_cdf", "fit_pdf"] | Callable[[FloatArray], FloatArray] | Fit,
+    secondary: Literal["cdf", "fit_cdf", "fit_pdf"]
+    | Callable[[FloatArray], FloatArray]
+    | Fit,
     m: Measurement,
     requested: DataType,
     *,
@@ -524,7 +526,9 @@ def _secondary_curves(  # pragma: no cover # noqa: PLR0913
             )
 
         fit = distribution.distribution_fit
-        fit_total = float(fit.cdf(np.inf))  # normalize to the fit, since it extends beyond the measured range
+        fit_total = float(
+            fit.cdf(np.inf)
+        )  # normalize to the fit, since it extends beyond the measured range
 
         def evaluate(f: Fit) -> FloatArray:
             if secondary == "fit_cdf":
@@ -548,7 +552,10 @@ def _secondary_curves(  # pragma: no cover # noqa: PLR0913
                         x,
                         evaluate(mode),
                         f"Mode {i + 1}",
-                        {"color": colors[(color_offset + i) % len(colors)], "linestyle": "--"},
+                        {
+                            "color": colors[(color_offset + i) % len(colors)],
+                            "linestyle": "--",
+                        },
                     )
                     for i, mode in enumerate(fit.modes)
                 ]

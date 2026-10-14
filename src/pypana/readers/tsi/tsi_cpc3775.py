@@ -6,6 +6,7 @@ References:
     https://tsi.com/discontinued-products/condensation-particle-counter-3775
 """
 
+import itertools
 import re
 from collections.abc import Hashable
 from datetime import datetime
@@ -15,14 +16,14 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from pypana.data.defs import Quantity
+from pypana.data.defs import FloatArray, Quantity
 from pypana.data.instrument_data import InstrumentData
 from pypana.data.measurement import Measurement
 from pypana.data.time_series import TimeSeries
 from pypana.readers.base_instrument_reader import BaseInstrumentReader
 from pypana.readers.base_reader import InputType
-from pypana.readers.exceptions.read_error import ReadError
-from pypana.readers.tsi.utils import is_basic_tsi_format_file
+from pypana.readers.exceptions.read_error import ReaderNotImplementedError, ReadError
+from pypana.readers.tsi.utils import is_basic_tsi_format_file, read_metadata_block
 
 
 class TSICPC3775InstrumentReader(BaseInstrumentReader):
@@ -31,10 +32,12 @@ class TSICPC3775InstrumentReader(BaseInstrumentReader):
     _device_name = "TSI CPC 3775"
     _encoding = "iso-8859-1"
     _input_type = InputType.FILE
+    _SUPPORTED_INTERVAL = 1
 
     _HEADER_START = (
         "Sample #\tStart Date\tStart Time\tSample Length\tAveraging Interval (s)"
     )
+    _SAMPLES_AS_ROWS = True
     _DATETIME_FORMAT = "%m/%d/%y %H:%M:%S"
 
     _CONC_COLUMN_PATTERN = re.compile(r"\[\d+(\.\d+)?\]\s+Conc")
@@ -70,6 +73,7 @@ class TSICPC3775InstrumentReader(BaseInstrumentReader):
         return is_basic_tsi_format_file(
             path,
             anchors,
+            check_sample_order=cls._SAMPLES_AS_ROWS,
             encoding=cls._encoding,
         )
 
@@ -112,6 +116,8 @@ class TSICPC3775InstrumentReader(BaseInstrumentReader):
                 skiprows=header_line,
                 index_col=False,
                 encoding=self._encoding,
+                keep_default_na=False,
+                na_values=[""],
             )
 
             conc_columns = [
@@ -174,37 +180,254 @@ class TSICPC3775InstrumentReader(BaseInstrumentReader):
         interval = int(row["Averaging Interval (s)"])
         sample_length = int(row["Sample Length"])
 
-        # Samples shorter than the widest row in the file leave the trailing columns empty
+        self._check_interval(interval)
+
         n_samples = min(sample_length // interval, len(conc_columns))
 
-        timestamps = np.datetime64(start, "ms") + np.arange(n_samples) * np.timedelta64(
-            interval, "s"
+        concentrations = np.array(
+            [row[c] for c in conc_columns[:n_samples]], dtype=float
         )
+        counts = (
+            np.array([row[c] for c in count_columns[:n_samples]], dtype=float)
+            if count_columns
+            else None
+        )
+        statistics: dict[Hashable, Any] = {
+            key: row[column] for key, column in self._OTHER_COLUMNS.items()
+        }
+
+        measurement = self._build_measurement(
+            scan_nr,
+            start,
+            interval,
+            sample_length,
+            "" if pd.isna(row["Title"]) else str(row["Title"]),
+            concentrations,
+            counts,
+            statistics,
+        )
+
+        return scan_nr, measurement
+
+    def _check_interval(self, interval: int) -> None:
+        """Checks that the averaging interval is supported.
+
+        Args:
+            interval: The averaging interval in seconds.
+
+        Raises:
+            ReaderNotImplementedError: If the averaging interval is not supported.
+        """
+        if interval != self._SUPPORTED_INTERVAL:
+            raise ReaderNotImplementedError(
+                f"Only an averaging interval of {self._SUPPORTED_INTERVAL} s is implemented "
+                f"for TSI CPC 3775 (got {interval} s)."
+            )
+
+    def _build_measurement(
+        self,
+        scan_nr: int,
+        start: datetime,
+        interval: int,
+        sample_length: int,
+        title: str,
+        concentrations: FloatArray,
+        counts: FloatArray | None,
+        statistics: dict[Hashable, Any],
+    ) -> Measurement:
+        """Build one Measurement from the values of a CPC sample.
+
+        Args:
+            scan_nr: The 1-based sample number.
+            start: The start of the sample.
+            interval: The averaging interval in seconds.
+            sample_length: The sample length in seconds.
+            title: The title of the sample.
+            concentrations: The concentration of each interval.
+            counts: The raw counts of each interval, if reported.
+            statistics: The other values reported for the sample, by name.
+
+        Returns:
+            The Measurement of the sample.
+        """
+        # TSI stamps each value at the end of its averaging interval
+        timestamps = np.datetime64(start, "ms") + np.arange(
+            1, len(concentrations) + 1
+        ) * np.timedelta64(interval, "s")
 
         number = TimeSeries(
             quantity=Quantity.NUMBER,
             timestamps=timestamps,
-            values=np.array([row[c] for c in conc_columns[:n_samples]], dtype=float),
+            values=concentrations,
         )
 
         other: dict[Hashable, Any] = {
-            "title": "" if pd.isna(row["Title"]) else str(row["Title"]),
+            "title": title,
             "sample_length": sample_length,
             "averaging_interval": interval,
+            **statistics,
         }
-        for key, column in self._OTHER_COLUMNS.items():
-            other[key] = row[column]
 
-        if count_columns:
-            other["counts"] = np.array(
-                [row[c] for c in count_columns[:n_samples]], dtype=float
-            )
+        if counts is not None:
+            other["counts"] = counts
 
-        measurement = Measurement(
+        return Measurement(
             scan_nr=scan_nr,
             time=start,
             series={Quantity.NUMBER: number},
             other=other,
         )
 
-        return scan_nr, measurement
+
+class TSICPC3775ColumnInstrumentReader(TSICPC3775InstrumentReader):
+    """Instrument reader for TSI CPC 3775 files with one block of columns per sample."""
+
+    _HEADER_START = "Sample #\t1\t\t\t"
+    _SAMPLES_AS_ROWS = False
+    _BLOCK_WIDTH = 4
+    _FINISHED_BLOCK_WIDTH = 3
+    _ELAPSED_LABEL = "Elapsed (s)"
+    _STATISTIC_LABELS = {
+        "conc_mean": "Mean",
+        "conc_min": "Min",
+        "conc_max": "Max",
+        "conc_std_dev": "Std. Dev.",
+    }
+
+    def read(self) -> InstrumentData:
+        """Read the given file and convert its data into the pypana format.
+
+        Each sample has a block of four columns: concentration, count and two analog inputs.
+        A finished sample leaves three empty cells instead of four.
+
+        Returns:
+            InstrumentData: The pypana instrument on which further analysis can be conducted.
+
+        Raises:
+            ReadError: If an error occurs while reading the file.
+            ReaderNotImplementedError: If the interval or the analog inputs are not supported.
+        """
+        try:
+            header_pos, metadata = read_metadata_block(
+                self._path, self._HEADER_START, "\t", encoding=self._encoding
+            )
+
+            with Path.open(self._path, "r", encoding=self._encoding) as f:
+                rows = [
+                    line.rstrip("\r\n").split("\t")
+                    for line in itertools.islice(f, header_pos, None)
+                ]
+
+            measurements = self._read_samples(rows)
+
+        except (FileNotFoundError, UnicodeDecodeError) as e:
+            raise ReadError(f"{e}", path=self._path) from e
+        except (ValueError, IndexError, KeyError) as e:
+            raise ReadError(f"{e}", path=self._path) from e
+
+        if not measurements:
+            raise ReadError(message="No valid measurements to import!", path=self._path)
+
+        return InstrumentData(
+            measurements=measurements,
+            device_name=self._device_name,
+            file_path=self._path,
+            other_info={
+                "sample_file": metadata["Sample File"],
+                "model": metadata["Model"],
+            },
+        )
+
+    def _read_samples(self, rows: list[list[str]]) -> dict[int, Measurement]:
+        """Decodes the samples from the table rows, starting at the line with the sample numbers.
+
+        Args:
+            rows: The split lines of the table.
+
+        Returns:
+            The measurements by 0-based sample index.
+
+        Raises:
+            ReaderNotImplementedError: If the interval or the analog inputs are not supported.
+        """
+        sample_ids = [int(cell) for cell in rows[0][1:] if cell]
+        n_samples = len(sample_ids)
+
+        elapsed_pos = next(
+            (i for i, row in enumerate(rows) if row[0] == self._ELAPSED_LABEL), None
+        )
+
+        if elapsed_pos is None:
+            raise ReadError(
+                message=f"The file does not contain a line starting with '{self._ELAPSED_LABEL}'.",
+                path=self._path,
+            )
+
+        values = {
+            row[0]: [row[1 + self._BLOCK_WIDTH * j] for j in range(n_samples)]
+            for row in rows[1:elapsed_pos]
+            if row[0]
+        }
+
+        lengths = [
+            sum(
+                int(part) * factor
+                for part, factor in zip(length.split(":"), (3600, 60, 1), strict=True)
+            )
+            for length in values["Sample Length"]
+        ]
+
+        concentrations: list[list[float]] = [[] for _ in range(n_samples)]
+        counts: list[list[float]] = [[] for _ in range(n_samples)]
+        analog_sum = 0.0
+
+        for row in rows[elapsed_pos + 1 :]:
+            if len(row) == 1:
+                break
+
+            elapsed = float(row[0])
+            position = 1
+
+            for j in range(n_samples):
+                if elapsed <= lengths[j]:
+                    block = row[position : position + self._BLOCK_WIDTH]
+                    concentrations[j].append(float(block[0]))
+                    counts[j].append(float(block[1]))
+                    analog_sum += abs(float(block[2])) + abs(float(block[3]))
+                    position += self._BLOCK_WIDTH
+                else:
+                    position += self._FINISHED_BLOCK_WIDTH
+
+        if analog_sum != 0:
+            raise ReaderNotImplementedError(
+                "Non zero analog inputs are not implemented for TSI CPC 3775."
+            )
+
+        measurements: dict[int, Measurement] = {}
+
+        for j, scan_nr in enumerate(sample_ids):
+            interval = int(float(values["Averaging Interval (secs)"][j]))
+            self._check_interval(interval)
+
+            measurements[scan_nr - 1] = self._build_measurement(
+                scan_nr,
+                datetime.strptime(
+                    f"{values['Start Date'][j]} {values['Start Time'][j]}",
+                    self._DATETIME_FORMAT,
+                ),
+                interval,
+                lengths[j],
+                values["Title"][j],
+                np.array(concentrations[j], dtype=float),
+                np.array(counts[j], dtype=float),
+                {
+                    "instrument_id": values["Instrument ID"][j],
+                    "instrument_errors": values["Instrument Errors"][j],
+                    **{
+                        key: float(values[label][j])
+                        for key, label in self._STATISTIC_LABELS.items()
+                    },
+                },
+            )
+
+        return measurements

@@ -3,6 +3,7 @@
 This module provides a class to store the data and perform calculations on it
 """
 
+import contextlib
 import copy
 from collections.abc import Callable, Hashable
 from pathlib import Path
@@ -378,15 +379,14 @@ class InstrumentData(BaseModel, Debuggable):
         return self.mapply(lambda m: m.cut(d))
 
     def fit(
-            self,
-            *,
-            fit_type: LogNormalFitType | Literal["outline"] = "mode",
-            modes: int | None = 1,
-            loss: Literal["linear", "soft_l1", "huber", "cauchy", "arctan"] = "linear",
-            outlier_scale: float = 0.05,
+        self,
+        *,
+        fit_type: LogNormalFitType | Literal["outline"] = "mode",
+        modes: int | None = 1,
+        loss: Literal["linear", "soft_l1", "huber", "cauchy", "arctan"] = "linear",
+        outlier_scale: float = 0.05,
     ) -> LogNormalFit | None:
-        """Fits the specified function to the all :class:`pypana.data.size_distribution.SizeDistribution`
-        of the Measurement.
+        """Fits the function to the all :class:`pypana.data.size_distribution.SizeDistribution` of the Measurement.
 
         The model is fitted against the contents of each bin.
         Bins holding ``NaN`` are treated as missing and are ignored.
@@ -409,7 +409,9 @@ class InstrumentData(BaseModel, Debuggable):
             ParticleAnalysisError: If no :class:`pypana.data.measurement.Measurement` is present.
         """
         if fit_type == "outline":
-            quantities = {q for m in self.measurements.values() for q in m.distributions}
+            quantities = {
+                q for m in self.measurements.values() for q in m.distributions
+            }
 
             if len(quantities) != 1:
                 raise IncompatibleArgumentError(
@@ -427,7 +429,9 @@ class InstrumentData(BaseModel, Debuggable):
             peaks: list[tuple[np.floating, np.floating]] = [
                 _fit.peak
                 for m in self.measurements.values()
-                if isinstance(_fit := m.distributions[quantity].distribution_fit, ModeLognormalFit)
+                if isinstance(
+                    _fit := m.distributions[quantity].distribution_fit, ModeLognormalFit
+                )
             ]
 
             if len(peaks) < self.MIN_OUTLINE_POINTS:
@@ -442,7 +446,7 @@ class InstrumentData(BaseModel, Debuggable):
                 mu: np.floating,
             ) -> FloatArray:
                 return np.asarray(
-                    amplitude * np.exp(-((np.log(x) - mu) ** 2) / (2 * sigma ** 2)),
+                    amplitude * np.exp(-((np.log(x) - mu) ** 2) / (2 * sigma**2)),
                     dtype=float,
                 )
 
@@ -473,15 +477,13 @@ class InstrumentData(BaseModel, Debuggable):
 
         if fit_type in ["mode", "mixture"]:
             for measurement in tqdm(self.measurements.values()):
-                try:
+                with contextlib.suppress(ParticleAnalysisError, RuntimeError):
                     measurement.fit(
                         fit_type=fit_type,
                         modes=modes,
                         loss=loss,
                         outlier_scale=outlier_scale,
                     )
-                except (ParticleAnalysisError, RuntimeError):
-                    pass
 
             return None
 
@@ -679,7 +681,10 @@ class InstrumentData(BaseModel, Debuggable):
             _xlim = xlim
 
         _secondary: (
-            Literal["cdf", "fit_cdf", "fit_pdf"] | Callable[[FloatArray], FloatArray] | Fit | None
+            Literal["cdf", "fit_cdf", "fit_pdf"]
+            | Callable[[FloatArray], FloatArray]
+            | Fit
+            | None
         )
 
         if secondary == "outline":

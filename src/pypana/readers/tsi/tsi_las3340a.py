@@ -13,7 +13,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from pypana.config import UnitScale
+from pypana.config import UnitScale, constants
 from pypana.data.bin_axis import BinAxis
 from pypana.data.defs import FloatArray, Quantity
 from pypana.data.instrument_data import InstrumentData
@@ -35,10 +35,6 @@ class TSILAS3340AInstrumentReader(BaseInstrumentReader):
     _SIZE_SCALE = UnitScale.NANO
     _DATETIME_FORMAT = "%m/%d/%Y %I:%M:%S.%f %p"
     _SCAN_NR_STRIDE = 1_000
-
-    # Reference conditions for the standard -> volumetric flow correction (TSI App. Note FLOW-004).
-    _STANDARD_TEMPERATURE_K = 294.26
-    _STANDARD_PRESSURE_KPA = 101.3
 
     @classmethod
     def can_read(cls, path: Path) -> bool:
@@ -201,8 +197,10 @@ class TSILAS3340AInstrumentReader(BaseInstrumentReader):
         Returns:
             The volumetric flow [cm³/min].
         """
+        standard_temperature, standard_pressure = constants.TSI_NTP
+
         return (
             standard_flow
-            * (temperature / cls._STANDARD_TEMPERATURE_K)
-            * (cls._STANDARD_PRESSURE_KPA / pressure)
+            * (temperature / standard_temperature)
+            * (standard_pressure / pressure)
         )

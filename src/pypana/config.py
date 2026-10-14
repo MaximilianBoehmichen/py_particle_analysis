@@ -38,7 +38,7 @@ class _Constants(BaseSettings):
     )
 
     TSI_NTP: tuple[float, float] = Field(
-        default=(294.16, 101.3),
+        default=(294.26, 101.3),
         title="TSI Normal Temperature and Pressure",
         description="The TSI specific Normal Temperature (in K) and Pressure (in kPa) as per "
         "https://tsi.com/getmedia/a28dbc6d-ac11-4305-8501-3ce3f0163bbf/GenPurp"

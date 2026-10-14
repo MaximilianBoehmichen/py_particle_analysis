@@ -93,6 +93,7 @@ def size_distribution(
                         max_value=1e6,
                         allow_nan=False,
                         allow_infinity=False,
+                        allow_subnormal=False,  # should decrease the amount of flaky tests
                     ),
                     min_size=n_bins,
                     max_size=n_bins,

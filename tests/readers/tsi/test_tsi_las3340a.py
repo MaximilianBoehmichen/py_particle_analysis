@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from pypana.config import constants
 from pypana.readers.exceptions.read_error import ReadError
 from pypana.readers.tsi.tsi_las3340a import TSILAS3340AInstrumentReader
 from readers.defs import TSILAS3340A_FILE
@@ -46,3 +47,15 @@ class TestTSILAS3340AInstrumentReader:
         assert m.other["file"] == "20240704_7"
         assert m.n_bins == BINS
         assert m.diameter_type == "optical"
+
+    def test_volumetric_flow_at_reference_conditions(self) -> None:
+        """At the TSI reference conditions the volumetric flow equals the standard flow."""
+        temperature, pressure = constants.TSI_NTP
+
+        assert TSILAS3340AInstrumentReader._volumetric_flow(
+            standard_flow=1.0, temperature=temperature, pressure=pressure
+        ) == pytest.approx(1.0)
+
+    def test_tsi_reference_temperature(self) -> None:
+        """The TSI reference temperature is 21.11 °C (TSI Application Note FLOW-004)."""
+        assert constants.TSI_NTP[0] == pytest.approx(21.11 + 273.15)
