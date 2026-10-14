@@ -314,6 +314,8 @@ class SizeDistribution(BaseModel, Debuggable):
         Returns:
             Itself, after applying the changes.
         """
+        self.distribution_fit = None
+
         if self.raw_delta is not None:
             self.raw_delta = func(self.raw_delta)
         elif self.raw_delta_dlogdp is not None:  # pragma: no branch
@@ -368,8 +370,9 @@ class SizeDistribution(BaseModel, Debuggable):
         Returns:
             The fit.
         """
-        if self.distribution_fit:
+        if self.distribution_fit is not None:
             console.print("Overriding previous fit!")
+            self.distribution_fit = None
 
         if fit_type == "mode":
             measured = np.isfinite(self.delta)

@@ -18,6 +18,7 @@ from scipy.optimize import curve_fit
 from tqdm import tqdm
 
 from pypana.analysis.lognormal import LogNormalFit, LogNormalFitType, ModeLognormalFit
+from pypana.analysis.lognormal.fit import Fit
 from pypana.console import console
 from pypana.data.collection_efficiency import CollectionEfficiency
 from pypana.data.defs import DataType, DataTypeLike, FloatArray, Quantity
@@ -56,6 +57,11 @@ class InstrumentData(BaseModel, Debuggable):
     other_info: dict[Hashable, Any] = Field(
         default_factory=dict,
         description="Other info about the measurements that might be required.",
+    )
+
+    outline_fit: tuple[Quantity, ModeLognormalFit] | None = Field(
+        default=None,
+        description="The outline fit over all measurements and the quantity it was fitted on.",
     )
 
     MIN_OUTLINE_POINTS: ClassVar[int] = 5
@@ -367,6 +373,8 @@ class InstrumentData(BaseModel, Debuggable):
         Note:
             This operation is inplace.
         """
+        self.outline_fit = None
+
         return self.mapply(lambda m: m.cut(d))
 
     def fit(
@@ -401,24 +409,26 @@ class InstrumentData(BaseModel, Debuggable):
             ParticleAnalysisError: If no :class:`pypana.data.measurement.Measurement` is present.
         """
         if fit_type == "outline":
+            quantities = {q for m in self.measurements.values() for q in m.distributions}
+
+            if len(quantities) != 1:
+                raise IncompatibleArgumentError(
+                    message="Outline may only depend on one type of quantity"
+                )
+
+            (quantity,) = quantities
+
             self.fit(
                 fit_type="mode",
                 loss=loss,
                 outlier_scale=outlier_scale,
             )
 
-            peaks: list[tuple[np.floating, np.floating]] = []
-
-            for m in self.measurements.values():
-                if len(m.distributions) > 1:
-                    raise IncompatibleArgumentError("Outline may only depend on one type of quantity")
-
-                for distribution in m.distributions.values():
-                    if (
-                        distribution.distribution_fit is not None
-                        and isinstance(distribution.distribution_fit, ModeLognormalFit)
-                    ):
-                        peaks.append(distribution.distribution_fit.peak)
+            peaks: list[tuple[np.floating, np.floating]] = [
+                _fit.peak
+                for m in self.measurements.values()
+                if isinstance(_fit := m.distributions[quantity].distribution_fit, ModeLognormalFit)
+            ]
 
             if len(peaks) < self.MIN_OUTLINE_POINTS:
                 raise ParticleAnalysisError("Not enough supports for outline!")
@@ -452,11 +462,14 @@ class InstrumentData(BaseModel, Debuggable):
             )
             amplitude, sigma, mu = popt
 
-            return ModeLognormalFit(
+            outline_fit = ModeLognormalFit(
                 n=amplitude * sigma * np.sqrt(2 * np.pi) / np.log(10),
                 sigma=sigma,
                 mu=mu,
             )
+            self.outline_fit = (quantity, outline_fit)
+
+            return outline_fit
 
         if fit_type in ["mode", "mixture"]:
             for measurement in tqdm(self.measurements.values()):
@@ -481,7 +494,7 @@ class InstrumentData(BaseModel, Debuggable):
         *,
         theme: BaseTheme | None = None,
         hist_type: Literal["bar", "stairs", "both"] = "bar",
-        secondary: Literal["cdf", "fit_cdf", "fit_pdf"]
+        secondary: Literal["cdf", "fit_cdf", "fit_pdf", "outline"]
         | Callable[[FloatArray], FloatArray]
         | None = None,
         save_as: str | None = None,
@@ -540,9 +553,11 @@ class InstrumentData(BaseModel, Debuggable):
             hist_type (str): What histogram type to display. "bar" plots a standard bar histogram,
                 "stairs" plots the outlines of the histogram, and "both" plots both together.
                 Defaults to ``"bar"``.
-            secondary (str | Callable[[Measurement] | Measurement]): The additional function to plot.
-                "fit_cdf" and "fit_pdf" require the measurement to already be fitted previously. Both currently raise
-                NotImplementedError. Or give a custom function that computes the secondary data. Defaults to ``None``.
+            secondary (str | Callable[[FloatArray], FloatArray]): The additional function to plot.
+                ``"cdf"`` plots the cumulative sum on a secondary axis. ``"fit_pdf"`` and ``"fit_cdf"`` plot the fit
+                of the first measurement of each subplot; a mixture also shows its individual modes dashed.
+                ``"outline"`` plots the fit from ``fit(fit_type="outline")`` in every subplot. A callable computes
+                custom secondary data. Defaults to ``None``.
             save_as (str | None): The path where to save the figure. Defaults to ``None`` which does not save.
             legend (bool): Whether to show the legend. Defaults to ``True``.
             pmf (bool): Whether to plot the measurement as probability mass function. Defaults to ``False``.
@@ -663,6 +678,26 @@ class InstrumentData(BaseModel, Debuggable):
 
             _xlim = xlim
 
+        _secondary: (
+            Literal["cdf", "fit_cdf", "fit_pdf"] | Callable[[FloatArray], FloatArray] | Fit | None
+        )
+
+        if secondary == "outline":
+            if self.outline_fit is None:
+                raise ParticleAnalysisError(
+                    "No outline fitted. Call fit(fit_type='outline') first."
+                )
+
+            outline_quantity, _secondary = self.outline_fit
+
+            if DataType.parse(data_type).quantity is not outline_quantity:
+                raise IncompatibleArgumentError(
+                    message=f"The outline was fitted on {outline_quantity.full_name}.",
+                    incompatible_with=[("data_type", data_type)],
+                )
+        else:
+            _secondary = secondary
+
         plot_hist_matrix(
             [
                 [tuple(self.measurements[_m] for _m in tup) for tup in inner]
@@ -671,7 +706,7 @@ class InstrumentData(BaseModel, Debuggable):
             data_type,
             theme=theme,
             hist_type=hist_type,
-            secondary=secondary,
+            secondary=_secondary,
             save_as=save_as,
             legend=legend,
             transforms=transforms,

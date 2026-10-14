@@ -1,6 +1,7 @@
 """Methods for plotting histograms of measurements in a matrix format."""
 
 from collections.abc import Callable, Iterator
+from dataclasses import dataclass, field
 from itertools import cycle
 from typing import Any, Literal
 
@@ -13,9 +14,13 @@ from matplotlib.container import BarContainer
 from matplotlib.patches import StepPatch
 from matplotlib.ticker import Formatter
 
+from pypana.analysis.lognormal import MixtureLognormalFit, ModeLognormalFit
+from pypana.analysis.lognormal.fit import Fit
 from pypana.config import settings
+from pypana.data.bin_axis import BinAxis
 from pypana.data.defs import DataType, DataTypeLike, FloatArray, Normalization
 from pypana.data.measurement import Measurement
+from pypana.pana_error import ParticleAnalysisError
 from pypana.plots.themes import BaseTheme
 from pypana.plots.utils import coerce_formatter, linear_sci_formatter, split_kwargs
 
@@ -55,6 +60,7 @@ def plot_hist_matrix(  # pragma: no cover # noqa: PLR0912, PLR0915
     hist_type: Literal["bar", "stairs", "both"] = "bar",
     secondary: Literal["cdf", "fit_cdf", "fit_pdf"]
     | Callable[[FloatArray], FloatArray]
+    | Fit
     | None = None,
     save_as: str | None = None,
     legend: Literal[
@@ -110,9 +116,11 @@ def plot_hist_matrix(  # pragma: no cover # noqa: PLR0912, PLR0915
         hist_type (str): What histogram type to display. "bar" plots a standard bar histogram,
             "stairs" plots the outlines of the histogram, and "both" plots both together.
             Defaults to ``"bar"``.
-        secondary (str | Callable[[Measurement] | Measurement]): The additional function to plot.
-            "fit_cdf" and "fit_pdf" require the measurement to already be fitted previously. Both currently raise
-            NotImplementedError. Or give a custom function that computes the secondary data. Defaults to ``None``.
+        secondary (str | Callable[[FloatArray], FloatArray] | Fit): The additional function to plot.
+            ``"cdf"`` plots the cumulative sum on a secondary axis. ``"fit_pdf"`` and ``"fit_cdf"`` plot the fit
+            of the first measurement of each subplot; a mixture also shows its individual modes dashed.
+            A :class:`pypana.analysis.lognormal.fit.Fit` is plotted as outline in every subplot.
+            A callable computes custom secondary data. Defaults to ``None``.
         save_as (str | None): The path where to save the figure. Defaults to ``None`` which does not save.
         legend (str | None): Whether to show the legend and where.
         pmf (bool): Whether to plot the measurement as probability mass function. Defaults to ``False``.
@@ -151,6 +159,13 @@ def plot_hist_matrix(  # pragma: no cover # noqa: PLR0912, PLR0915
         if _theme.color_cycle
         else plt.rcParams["axes.prop_cycle"].by_key()["color"]
     )
+
+    _secondary_meta_keys = ("color", "label", "ylabel", "ylim", "yformatter")
+    _secondary_color = str(_secondary_kwargs.get("color") or "black")
+    _secondary_line_kwargs = {
+        k: v for k, v in _secondary_kwargs.items() if k not in _secondary_meta_keys
+    }
+    _drawn = 0
 
     _handles: list = []
     _labels: list = []
@@ -205,68 +220,63 @@ def plot_hist_matrix(  # pragma: no cover # noqa: PLR0912, PLR0915
                         _stairs_kwargs.get("label", "")
                     ) if hist_type != "both" else None
 
-            if secondary:
-                _color_kwarg = (
-                    {} if "color" in _secondary_kwargs else {"color": "black"}
+                _drawn += 1
+
+            ax2: Axes | None = None
+
+            if secondary is not None:
+                curves, on_twin, secondary_ylabel = _secondary_curves(
+                    secondary,
+                    _m_tuple[0],
+                    requested,
+                    transforms=transforms,
+                    pmf=pmf,
+                    color=_secondary_color,
+                    colors=_colors,
+                    color_offset=_drawn,
+                    label_spec=kwargs.get("secondary_label"),
+                    ylabel=str(_secondary_kwargs.get("ylabel") or ""),
                 )
-                secondary_ylabel = ""
-                plot_data: FloatArray = np.zeros([], dtype=float)
 
-                if callable(secondary):
-                    secondary_label = "function"
-                    secondary_ylabel = str(_secondary_kwargs.get("ylabel", ""))
-                    plot_data = secondary(_data)
+                twin = ax.twinx() if on_twin else None
+                target = twin or ax
 
-                elif isinstance(secondary, str) and secondary == "cdf":
-                    secondary_label = "CDF"
-                    secondary_ylabel = "CDF"
-                    total = _data.sum()
-                    plot_data = np.asarray(
-                        np.cumsum(_data / total) if total > 0 else np.zeros_like(_data),
-                        dtype=float,
+                for curve in curves:
+                    (line,) = target.plot(
+                        curve.x,
+                        curve.y,
+                        label=curve.label,
+                        **{**_secondary_line_kwargs, **curve.style},
                     )
+                    _secondary_handles.append(line)
+                    _secondary_labels.append(curve.label)
 
-                elif isinstance(secondary, str) and secondary in ["fit_cdf", "fit_pdf"]:
-                    raise NotImplementedError
+                # configure the twin axis only after plotting, so the autoscaled upper limit is kept
+                if twin is not None:
+                    ax2 = twin
 
-                _secondary_kwargs["label"] = _resolve_label(
-                    kwargs.get("secondary_label"), _m, secondary_label
-                )
-                _secondary_kwargs.pop("ylabel", None)
-                secondary_ylim = _secondary_kwargs.pop("ylim", None)
-                ax2 = ax.twinx()
-                (line,) = ax2.plot(
-                    _m.d_p,
-                    plot_data,
-                    **_color_kwarg,
-                    **_secondary_kwargs,
-                )
+                    twin.yaxis.set_major_formatter(
+                        coerce_formatter(_secondary_kwargs.get("yformatter"))
+                        or (
+                            linear_sci_formatter()
+                            if yscale == "linear"
+                            else ticker.LogFormatterSciNotation()
+                        )
+                    )
+                    twin.tick_params(axis="y", direction="in")
 
-                _yformatter = coerce_formatter(
-                    _secondary_kwargs.get("yformatter", None)
-                ) or (
-                    linear_sci_formatter()
-                    if yscale == "linear"
-                    else ticker.LogFormatterSciNotation()
-                )
+                    _secondary_ylim = _secondary_kwargs.get("ylim")
 
-                ax2.yaxis.set_major_formatter(_yformatter)
-                ax2.tick_params(axis="y", direction="in")
+                    if _secondary_ylim:
+                        twin.set_ylim(_secondary_ylim)
+                    else:
+                        # override line default, since it is likely a transform of main data
+                        twin.set_ylim(bottom=0)
 
-                if secondary_ylim:
-                    ax2.set_ylim(_secondary_kwargs["ylim"])
-                else:
-                    ax2.set_ylim(
-                        bottom=0
-                    )  # override line default, since it is likely a transform of main data
-
-                if c != _cols - 1:
-                    ax2.yaxis.set_visible(False)
-                else:
-                    ax2.set_ylabel(secondary_ylabel)
-
-                _secondary_handles.append(line)
-                _secondary_labels.append(_secondary_kwargs.get("label", ""))
+                    if c != _cols - 1:
+                        twin.yaxis.set_visible(False)
+                    else:
+                        twin.set_ylabel(secondary_ylabel)
 
             _format_ax(
                 ax,
@@ -283,7 +293,7 @@ def plot_hist_matrix(  # pragma: no cover # noqa: PLR0912, PLR0915
             )
 
             h1, l1 = ax.get_legend_handles_labels()
-            h2, l2 = ax2.get_legend_handles_labels() if secondary else ([], [])
+            h2, l2 = ax2.get_legend_handles_labels() if ax2 is not None else ([], [])
             ax.legend(
                 h1 + h2, l1 + l2, loc=legend, **_legend_kwargs
             ) if legend and legend not in ["row", "column"] else None
@@ -418,6 +428,133 @@ def _bar_plot(  # pragma: no cover
         **_bar_kwargs,
     )
     return bar
+
+
+FIT_RESOLUTION = 500
+"""Number of points a fit curve is evaluated at."""
+
+
+@dataclass(frozen=True)
+class _Curve:
+    """One line of the secondary plot."""
+
+    x: FloatArray
+    y: FloatArray
+    label: str
+    style: dict[str, object] = field(default_factory=dict)
+
+
+def _fit_values(
+    fit: Fit, x: FloatArray, axis: BinAxis, normalization: Normalization
+) -> FloatArray:
+    """Evaluates a fit continuously in the representation of the histogram.
+
+    For ``dX/dlogdp`` this is the density per decade. For ``dX`` it is the content a bin of the
+    local bin width centered at ``x`` would hold, which equals the bar height at each bin center.
+    """
+    if normalization is Normalization.DLOG_DP:
+        return np.asarray(np.log(10) * x * fit.pdf(x), dtype=float)
+
+    widths = np.interp(np.log10(x), np.log10(axis.d_p), axis.delta_log_d_p)
+    half = 10 ** (widths / 2)
+
+    return np.asarray(fit.cdf(x * half) - fit.cdf(x / half), dtype=float)
+
+
+def _secondary_curves(  # pragma: no cover # noqa: PLR0913
+    secondary: Literal["cdf", "fit_cdf", "fit_pdf"] | Callable[[FloatArray], FloatArray] | Fit,
+    m: Measurement,
+    requested: DataType,
+    *,
+    transforms: Callable[[FloatArray], FloatArray],
+    pmf: bool,
+    color: str,
+    colors: list[str],
+    color_offset: int,
+    label_spec: str | Callable[[Measurement], str] | None,
+    ylabel: str,
+) -> tuple[list[_Curve], bool, str]:
+    """Computes the secondary lines of one subplot.
+
+    Returns:
+        The curves, whether they belong on a twin axis, and the twin axis label.
+    """
+    axis = m.axis
+
+    if axis is None:
+        raise ParticleAnalysisError("Secondary functions require a size distribution.")
+
+    data = transforms(m[requested].copy())
+    data_total = float(np.nansum(data))
+    x = np.geomspace(axis.d_lower[0], axis.d_upper[-1], FIT_RESOLUTION)
+
+    if isinstance(secondary, Fit):
+        if pmf:
+            raise NotImplementedError  # peaks normalized per measurement share no scale
+
+        y = _fit_values(secondary, x, axis, requested.normalization)
+        label = _resolve_label(label_spec, m, "Outline")
+
+        return [_Curve(x, y, label, {"color": color})], False, ""
+
+    if callable(secondary):
+        if pmf:
+            data /= data_total
+
+        label = _resolve_label(label_spec, m, "function")
+
+        return [_Curve(m.d_p, secondary(data), label, {"color": color})], True, ylabel
+
+    if secondary == "cdf":
+        y = np.cumsum(data / data_total) if data_total > 0 else np.zeros_like(data)
+        label = _resolve_label(label_spec, m, "CDF")
+
+        return (
+            [_Curve(m.d_p, np.asarray(y, dtype=float), label, {"color": color})],
+            True,
+            "CDF",
+        )
+
+    if secondary in ["fit_cdf", "fit_pdf"]:
+        distribution = m.distributions.get(requested.quantity)
+
+        if distribution is None or distribution.distribution_fit is None:
+            raise ParticleAnalysisError(
+                f"Measurement {m.scan_nr} has no fit. Call fit() before plotting it."
+            )
+
+        fit = distribution.distribution_fit
+        fit_total = float(fit.cdf(np.inf))  # normalize to the fit, since it extends beyond the measured range
+
+        def evaluate(f: Fit) -> FloatArray:
+            if secondary == "fit_cdf":
+                return np.asarray(f.cdf(x) / fit_total, dtype=float)
+
+            y = _fit_values(f, x, axis, requested.normalization)
+            return y / data_total if pmf else y
+
+        on_twin = secondary == "fit_cdf"
+        _ylabel = "CDF" if on_twin else ""
+        summed = _Curve(
+            x, evaluate(fit), _resolve_label(label_spec, m, "Fit"), {"color": color}
+        )
+
+        match fit:
+            case ModeLognormalFit():
+                return [summed], on_twin, _ylabel
+            case MixtureLognormalFit():
+                parts = [
+                    _Curve(
+                        x,
+                        evaluate(mode),
+                        f"Mode {i + 1}",
+                        {"color": colors[(color_offset + i) % len(colors)], "linestyle": "--"},
+                    )
+                    for i, mode in enumerate(fit.modes)
+                ]
+                return [summed, *parts], on_twin, _ylabel
+
+    raise ParticleAnalysisError(f"Unknown secondary {secondary!r}.")
 
 
 def _get_default_title() -> str:  # pragma: no cover

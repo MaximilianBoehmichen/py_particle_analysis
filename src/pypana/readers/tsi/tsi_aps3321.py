@@ -225,7 +225,7 @@ class TSIAPS3321InstrumentReader(BaseInstrumentReader):
         d_p_file = (
             np.array(
                 data.columns[
-                    d_p_start_column : d_p_start_column + self._D_P_COLUMNS_COUNT
+                    d_p_start_column: d_p_start_column + self._D_P_COLUMNS_COUNT
                 ].str.replace("<", ""),
                 dtype=float,
             )

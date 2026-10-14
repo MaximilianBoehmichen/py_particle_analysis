@@ -17,6 +17,11 @@ class MixtureLognormalFit(Fit):
         """
         self._fits = fits
 
+    @property
+    def modes(self) -> tuple[ModeLognormalFit, ...]:
+        """The individual lognormal modes of this fit."""
+        return tuple(self._fits)
+
     def cdf(self, x: np.floating) -> np.floating:
         r"""The lognormal cumulative distribution function evaluated at x.
 
